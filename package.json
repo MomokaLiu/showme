@@ -1,0 +1,36 @@
+{
+  "name": "buwangwu-mvp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:android": "vite --host 0.0.0.0 --port 5173",
+    "test": "node --experimental-strip-types --test scripts/*.test.mjs",
+    "android:url": "node scripts/android-test-url.mjs",
+    "android:doctor": "npx cap doctor android && node scripts/android-build-env-check.mjs",
+    "build": "tsc && vite build",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:copy": "npm run build && npx cap copy android",
+    "android:open": "npm run cap:sync && npx cap open android",
+    "android:run": "npm run cap:sync && npx cap run android",
+    "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "android:aab": "npm run cap:sync && cd android && gradlew.bat bundleRelease",
+    "preview": "vite preview --host 0.0.0.0",
+    "preview:android": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

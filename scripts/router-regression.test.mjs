@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { parseRoute } from "../src/app/router.ts";
+
+test("the add route opens the new item page instead of treating new as an item id", () => {
+  assert.deepEqual(parseRoute("/items/new"), {
+    name: "new",
+    title: "添加物品",
+  });
+});
+
+test("item edit and detail routes keep their dynamic ids", () => {
+  assert.deepEqual(parseRoute("/items/edit/item-123"), {
+    name: "edit",
+    title: "编辑物品",
+    id: "item-123",
+  });
+  assert.deepEqual(parseRoute("/items/item-123"), {
+    name: "item",
+    title: "物品详情",
+    id: "item-123",
+  });
+});
+
+test("all static routes resolve to their dedicated pages", () => {
+  const expectedRoutes = new Map([
+    ["/", "dashboard"],
+    ["/items", "items"],
+    ["/items/new", "new"],
+    ["/expiring", "expiring"],
+    ["/shopping", "shopping"],
+    ["/stats", "stats"],
+    ["/settings", "settings"],
+  ]);
+
+  for (const [path, expectedName] of expectedRoutes) {
+    assert.equal(parseRoute(path).name, expectedName, `${path} resolved to the wrong page`);
+  }
+});
