@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>红米 K70 真机测试“不忘物”</title>
+    <link rel="stylesheet" href="../assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Lesson 0001 · 约 20 分钟</p>
+      <h1>在红米 K70 上测试当前版本</h1>
+      <p class="lede">先用局域网验证功能，再补齐 Android 工具链安装 APK。两条路线共享同一份验收清单。</p>
+
+      <h2>当前版本检查结果</h2>
+      <div class="status-grid">
+        <div class="card ok">
+          <strong>代码回归测试</strong>
+          19 / 19 通过
+        </div>
+        <div class="card ok">
+          <strong>Web / Capacitor 资源</strong>
+          已构建并同步到 Android 工程
+        </div>
+        <div class="card">
+          <strong>Android 标识</strong>
+          <code>com.buwangwu.app</code>
+        </div>
+        <div class="card">
+          <strong>Android 版本</strong>
+          versionName 1.0 · versionCode 1
+        </div>
+        <div class="card ok">
+          <strong>系统兼容范围</strong>
+          minSdk 24 · targetSdk 36；红米 K70 可运行
+        </div>
+        <div class="card warn">
+          <strong>APK 构建环境</strong>
+          当前电脑缺少 JDK、Android SDK 和 ADB
+        </div>
+        <div class="card ok">
+          <strong>局域网开发地址</strong>
+          <code>http://192.168.199.155:5173</code> 已返回 200
+        </div>
+      </div>
+
+      <h2>路线 A：立即用手机 Chrome 测试</h2>
+      <p>这是最快路线，不需要 JDK 或 Android Studio，适合先验收界面和主要业务逻辑。</p>
+
+      <ol>
+        <li>让红米 K70 和电脑连接同一个 Wi‑Fi。</li>
+        <li>在电脑 PowerShell 运行：</li>
+      </ol>
+      <pre><code>cd D:\vibe_projects\showme
+npm run dev:android</code></pre>
+      <ol start="3">
+        <li>若 Windows 防火墙弹窗，勾选“专用网络”并允许 Node.js。</li>
+        <li>在红米 K70 的 Chrome 打开 <code>http://192.168.199.155:5173</code>。</li>
+        <li>若电脑重新联网后地址失效，运行 <code>npm run android:url</code>，改用与手机同一 Wi‑Fi 网段的地址。</li>
+        <li>测试结束后回到 PowerShell，按 <code>Ctrl+C</code> 停止服务。</li>
+      </ol>
+
+      <div class="callout warn">
+        <strong>WebDAV 差异：</strong>Chrome 路线受浏览器 CORS 限制；如果服务器没有允许跨域，WebDAV
+        连接会失败。APK 路线使用原生 Capacitor HTTP，更适合验证 WebDAV。
+      </div>
+
+      <h2>路线 B：安装真正的 debug APK</h2>
+
+      <h3>1. 给电脑安装工具链</h3>
+      <ol>
+        <li>从 <a href="https://developer.android.com/studio">Android Studio 官方页面</a>下载安装。</li>
+        <li>首次启动采用 Standard 安装，确保 Android SDK、Platform Tools 和 Build Tools 被安装。</li>
+        <li>重新打开 PowerShell，临时配置本次终端：</li>
+      </ol>
+      <pre><code>$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
+
+java -version
+adb version
+cd D:\vibe_projects\showme
+npm run android:doctor</code></pre>
+      <p>三项都通过后，生成 APK：</p>
+      <pre><code>npm run android:apk</code></pre>
+      <p>产物位置：</p>
+      <pre><code>D:\vibe_projects\showme\android\app\build\outputs\apk\debug\app-debug.apk</code></pre>
+
+      <h3>2. 在红米 K70 开启调试</h3>
+      <ol>
+        <li>设置 → 我的设备/关于手机 → 详细信息与规格。</li>
+        <li>连续点击“OS 版本”或“MIUI 版本”约 7 次，直到提示已进入开发者模式。</li>
+        <li>设置 → 更多设置 → 开发者选项 → 开启“USB 调试”。</li>
+        <li>用支持数据传输的 USB 线连接电脑，USB 用途选择“文件传输”。</li>
+        <li>手机弹出电脑 RSA 指纹时，只在可信电脑上选择“始终允许”，然后确认。</li>
+      </ol>
+      <p>
+        以上路径来自
+        <a href="https://www.mi.com/global/support/faq/details/KA-168765/">小米开发者选项说明</a>与
+        <a href="https://www.mi.com/global/support/article/KA-06515/">USB 调试说明</a>。
+      </p>
+
+      <h3>3. 识别并安装</h3>
+      <pre><code>adb devices -l
+adb -d install -r "D:\vibe_projects\showme\android\app\build\outputs\apk\debug\app-debug.apk"</code></pre>
+      <ul>
+        <li>看到 <code>device</code>：连接正常。</li>
+        <li>看到 <code>unauthorized</code>：解锁手机并确认 RSA 指纹弹窗。</li>
+        <li>列表为空：换数据线/USB 口，确认 USB 调试和“文件传输”。</li>
+      </ul>
+      <div class="callout">
+        <code>-r</code> 会覆盖安装并保留现有数据。若提示签名不一致，卸载旧应用会清除本机数据；先通过 WebDAV
+        上传备份。
+      </div>
+
+      <h2>红米 K70 验收清单</h2>
+      <ul class="checklist">
+        <li>冷启动应用，首页、库存、临期、清单、统计均可进入。</li>
+        <li>点击“添加”，填写名称和总价，保存后出现详情页。</li>
+        <li>选择一张手机相册图片，确认预览、保存、库存缩略图和详情大图。</li>
+        <li>创建“无期限”物品，确认实际日均成本按购入日至今天计算。</li>
+        <li>结束应用进程并重新打开，确认库存与图片仍存在。</li>
+        <li>设置 → WebDAV：测试连接、立即同步，确认服务器出现 <code>buwangwu-data.json</code>。</li>
+        <li>新增一条数据后再次同步，确认显示“已上传”或“数据一致”。</li>
+        <li>断网启动一次，确认本地库存仍可查看。</li>
+        <li>返回键、锁屏恢复、深色系统主题和大字体下检查布局。</li>
+      </ul>
+
+      <h2>出问题时抓日志</h2>
+      <pre><code>adb logcat -c
+
+# 在手机上复现问题后运行：
+$appProcessId = (adb shell pidof com.buwangwu.app).Trim()
+adb logcat --pid=$appProcessId</code></pre>
+      <p>按 <code>Ctrl+C</code> 停止日志，把包含错误发生前后约 30 秒的内容发给我。</p>
+
+      <h2>快速排错</h2>
+      <div class="route-grid">
+        <div class="card">
+          <strong>手机打不开 192.168.199.155</strong>
+          确认同一 Wi‑Fi、电脑网络为“专用”、Windows 防火墙允许 Node.js。
+        </div>
+        <div class="card">
+          <strong>ADB 找不到手机</strong>
+          换可传数据的线，选择文件传输，重启 ADB：<code>adb kill-server</code> 后 <code>adb start-server</code>。
+        </div>
+        <div class="card">
+          <strong>APK 安装失败</strong>
+          先看完整错误；签名冲突时先 WebDAV 备份，再卸载旧包重装。
+        </div>
+        <div class="card">
+          <strong>WebDAV 只在 Chrome 失败</strong>
+          多半是 CORS；优先用 APK 验证，或给服务器配置跨域响应头。
+        </div>
+      </div>
+
+      <p class="next">
+        下一步：先完成路线 A 和验收清单前四项。任何一步不一致，把“步骤编号 + 手机画面/错误文字”发给我，我会继续带你定位。
+        另见 <a href="../reference/redmi-k70-testing-checklist.html">单页测试速查表</a>。
+      </p>
+    </main>
+  </body>
+</html>

@@ -14,16 +14,43 @@ import { itemRepository } from "../repositories/itemRepository";
 import { locationRepository } from "../repositories/locationRepository";
 import { shoppingRepository } from "../repositories/shoppingRepository";
 import { usageLogRepository } from "../repositories/usageLogRepository";
+import { capacitorWebDavTransport } from "../services/capacitorWebDavTransport";
+import {
+  getLocalDataUpdatedAt,
+  loadSyncMetadata,
+  markLocalDataChanged,
+  saveSyncMetadata,
+} from "../services/syncStorage";
+import {
+  createWebDavSync,
+  getWebDavErrorDetails,
+  type WebDavErrorDetails,
+} from "../services/webDavSync";
 import type { Category } from "../types/category";
 import type { Item, ItemDraft } from "../types/item";
 import type { Location } from "../types/location";
 import type { ShoppingItem } from "../types/shopping";
+import type {
+  InventorySyncData,
+  WebDavConfig,
+  WebDavSyncMode,
+  WebDavSyncResult,
+} from "../types/sync";
 import type { UsageActionType, UsageLog } from "../types/usageLog";
 import { toDateInputValue } from "../utils/dateUtils";
+import { normalizeItemImages } from "../utils/itemImages";
 import { enrichItem } from "../utils/itemCalculations";
 
 type ShoppingDraft = Omit<ShoppingItem, "id" | "isPurchased" | "createdAt" | "updatedAt"> & {
   isPurchased?: boolean;
+};
+
+type WebDavSyncState = {
+  isSyncing: boolean;
+  message?: string;
+  isError?: boolean;
+  errorDetails?: WebDavErrorDetails;
+  lastSyncedAt?: string;
 };
 
 type InventoryStore = {
@@ -47,6 +74,9 @@ type InventoryStore = {
   addItemToShoppingList: (itemId: string) => Promise<void>;
   toggleShoppingPurchased: (id: string) => Promise<void>;
   deleteShoppingItem: (id: string) => Promise<void>;
+  webDavSyncState: WebDavSyncState;
+  testWebDavConnection: (config: WebDavConfig) => Promise<void>;
+  synchronizeWebDav: (config: WebDavConfig, mode?: WebDavSyncMode) => Promise<WebDavSyncResult>;
 };
 
 const InventoryContext = createContext<InventoryStore | undefined>(undefined);
@@ -58,6 +88,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [locations, setLocations] = useState<Location[]>(defaultLocations);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const [webDavSyncState, setWebDavSyncState] = useState<WebDavSyncState>(() => ({
+    isSyncing: false,
+    lastSyncedAt: loadSyncMetadata().lastSyncedAt,
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +110,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       const nextCategories = storedCategories.length ? storedCategories : defaultCategories;
       const nextLocations = storedLocations.length ? storedLocations : defaultLocations;
-      const nextItems = storedItems.map((item) => enrichItem(item));
+      const nextItems = storedItems.map((item) => enrichItem(normalizeItemImages(item)));
 
       setCategories(nextCategories);
       setLocations(nextLocations);
@@ -97,14 +131,22 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const commitItems = useCallback(async (nextItems: Item[]) => {
-    const enrichedItems = nextItems.map((item) => enrichItem(item));
+    const enrichedItems = nextItems.map((item) => enrichItem(normalizeItemImages(item)));
     setItems(enrichedItems);
     await itemRepository.replaceAll(enrichedItems);
+    markLocalDataChanged();
   }, []);
 
   const commitLogs = useCallback(async (nextLogs: UsageLog[]) => {
     setLogs(nextLogs);
     await usageLogRepository.replaceAll(nextLogs);
+    markLocalDataChanged();
+  }, []);
+
+  const commitShoppingItems = useCallback(async (nextShoppingItems: ShoppingItem[]) => {
+    setShoppingItems(nextShoppingItems);
+    await shoppingRepository.replaceAll(nextShoppingItems);
+    markLocalDataChanged();
   }, []);
 
   const createLog = useCallback(
@@ -303,11 +345,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         updatedAt: now,
       };
       const nextShoppingItems = [shoppingItem, ...shoppingItems];
-      setShoppingItems(nextShoppingItems);
-      await shoppingRepository.replaceAll(nextShoppingItems);
+      await commitShoppingItems(nextShoppingItems);
       return shoppingItem.id;
     },
-    [shoppingItems],
+    [commitShoppingItems, shoppingItems],
   );
 
   const addItemToShoppingList = useCallback(
@@ -332,19 +373,138 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           ? { ...item, isPurchased: !item.isPurchased, updatedAt: new Date().toISOString() }
           : item,
       );
-      setShoppingItems(nextShoppingItems);
-      await shoppingRepository.replaceAll(nextShoppingItems);
+      await commitShoppingItems(nextShoppingItems);
     },
-    [shoppingItems],
+    [commitShoppingItems, shoppingItems],
   );
 
   const deleteShoppingItem = useCallback(
     async (id: string) => {
       const nextShoppingItems = shoppingItems.filter((item) => item.id !== id);
-      setShoppingItems(nextShoppingItems);
-      await shoppingRepository.replaceAll(nextShoppingItems);
+      await commitShoppingItems(nextShoppingItems);
     },
-    [shoppingItems],
+    [commitShoppingItems, shoppingItems],
+  );
+
+  const replaceInventoryData = useCallback(async (data: InventorySyncData) => {
+    const nextItems = data.items.map((item) => enrichItem(normalizeItemImages(item)));
+    const nextCategories = data.categories.length ? data.categories : defaultCategories;
+    const nextLocations = data.locations.length ? data.locations : defaultLocations;
+
+    await Promise.all([
+      itemRepository.replaceAll(nextItems),
+      usageLogRepository.replaceAll(data.logs),
+      categoryRepository.replaceAll(nextCategories),
+      locationRepository.replaceAll(nextLocations),
+      shoppingRepository.replaceAll(data.shoppingItems),
+    ]);
+
+    setItems(nextItems);
+    setLogs(data.logs);
+    setCategories(nextCategories);
+    setLocations(nextLocations);
+    setShoppingItems(data.shoppingItems);
+  }, []);
+
+  const testWebDavConnection = useCallback(
+    async (config: WebDavConfig) => {
+      if (webDavSyncState.isSyncing) throw new Error("已有同步任务正在进行。");
+      setWebDavSyncState((current) => ({
+        ...current,
+        isSyncing: true,
+        isError: false,
+        errorDetails: undefined,
+        message: "正在测试 WebDAV 连接...",
+      }));
+
+      try {
+        await createWebDavSync(config, capacitorWebDavTransport).testConnection();
+        setWebDavSyncState((current) => ({
+          ...current,
+          isSyncing: false,
+          isError: false,
+          errorDetails: undefined,
+          message: "WebDAV 连接成功。",
+        }));
+      } catch (error) {
+        const errorDetails = getSyncErrorDetails(error);
+        setWebDavSyncState((current) => ({
+          ...current,
+          isSyncing: false,
+          isError: true,
+          message: errorDetails.summary,
+          errorDetails,
+        }));
+        throw error;
+      }
+    },
+    [webDavSyncState.isSyncing],
+  );
+
+  const synchronizeWebDav = useCallback(
+    async (config: WebDavConfig, mode: WebDavSyncMode = "bidirectional") => {
+      if (webDavSyncState.isSyncing) throw new Error("已有同步任务正在进行。");
+      setWebDavSyncState((current) => ({
+        ...current,
+        isSyncing: true,
+        isError: false,
+        errorDetails: undefined,
+        message: syncProgressMessage[mode],
+      }));
+
+      const data: InventorySyncData = {
+        items,
+        logs,
+        categories,
+        locations,
+        shoppingItems,
+      };
+
+      try {
+        const result = await createWebDavSync(config, capacitorWebDavTransport).synchronize({
+          data,
+          localUpdatedAt: getLocalDataUpdatedAt(data),
+          mode,
+        });
+
+        if (result.action === "downloaded") {
+          await replaceInventoryData(result.document.data);
+        }
+
+        saveSyncMetadata({
+          localUpdatedAt: result.document.updatedAt,
+          lastSyncedAt: result.syncedAt,
+          lastAction: result.action,
+        });
+        setWebDavSyncState({
+          isSyncing: false,
+          isError: false,
+          errorDetails: undefined,
+          message: syncResultMessage[result.action],
+          lastSyncedAt: result.syncedAt,
+        });
+        return result;
+      } catch (error) {
+        const errorDetails = getSyncErrorDetails(error);
+        setWebDavSyncState((current) => ({
+          ...current,
+          isSyncing: false,
+          isError: true,
+          message: errorDetails.summary,
+          errorDetails,
+        }));
+        throw error;
+      }
+    },
+    [
+      categories,
+      items,
+      locations,
+      logs,
+      replaceInventoryData,
+      shoppingItems,
+      webDavSyncState.isSyncing,
+    ],
   );
 
   const value = useMemo<InventoryStore>(
@@ -369,6 +529,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       addItemToShoppingList,
       toggleShoppingPurchased,
       deleteShoppingItem,
+      webDavSyncState,
+      testWebDavConnection,
+      synchronizeWebDav,
     }),
     [
       isLoaded,
@@ -391,6 +554,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       addItemToShoppingList,
       toggleShoppingPurchased,
       deleteShoppingItem,
+      webDavSyncState,
+      testWebDavConnection,
+      synchronizeWebDav,
     ],
   );
 
@@ -407,4 +573,27 @@ export function useInventoryStore(): InventoryStore {
 
 function createId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+const syncProgressMessage: Record<WebDavSyncMode, string> = {
+  bidirectional: "正在比较本机和 WebDAV 数据...",
+  upload: "正在上传本机数据...",
+  download: "正在下载 WebDAV 数据...",
+};
+
+const syncResultMessage: Record<WebDavSyncResult["action"], string> = {
+  uploaded: "同步完成：已将本机数据上传到 WebDAV。",
+  downloaded: "同步完成：已使用较新的 WebDAV 数据更新本机。",
+  unchanged: "同步完成：本机与 WebDAV 数据已经一致。",
+};
+
+function getSyncErrorDetails(error: unknown): WebDavErrorDetails {
+  if (error instanceof DOMException && error.name === "QuotaExceededError") {
+    return {
+      summary: "无法保存 WebDAV 数据。",
+      reason: "本机存储空间不足。",
+      suggestion: "清理浏览器或应用存储空间后重试。",
+    };
+  }
+  return getWebDavErrorDetails(error);
 }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>红米 K70 测试速查</title>
+    <link rel="stylesheet" href="../assets/lesson.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Reference · 可打印</p>
+      <h1>红米 K70 测试速查</h1>
+
+      <h2>最快启动</h2>
+      <pre><code>cd D:\vibe_projects\showme
+npm run dev:android</code></pre>
+      <p>手机 Chrome：<code>http://192.168.199.155:5173</code></p>
+      <p>打不开时运行 <code>npm run android:url</code>，使用与手机同一 Wi‑Fi 网段的地址；首次启动还要允许 Windows 防火墙的“专用网络”访问。</p>
+
+      <h2>APK 构建</h2>
+      <pre><code>$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
+
+npm run android:doctor
+npm run android:apk</code></pre>
+
+      <h2>USB 安装</h2>
+      <pre><code>adb devices -l
+adb -d install -r "D:\vibe_projects\showme\android\app\build\outputs\apk\debug\app-debug.apk"</code></pre>
+
+      <h2>必须验证</h2>
+      <ul class="checklist">
+        <li>添加并保存物品</li>
+        <li>相册图片上传和重启持久化</li>
+        <li>无限期物品实际日均成本</li>
+        <li>WebDAV 测试连接与双向同步</li>
+        <li>断网、本机重启和返回键</li>
+      </ul>
+
+      <h2>日志</h2>
+      <pre><code>adb logcat -c
+$appProcessId = (adb shell pidof com.buwangwu.app).Trim()
+adb logcat --pid=$appProcessId</code></pre>
+
+      <p class="next">
+        完整课程：<a href="../lessons/0001-redmi-k70-current-build-test.html">在红米 K70 上测试当前版本</a>
+      </p>
+    </main>
+  </body>
+</html>

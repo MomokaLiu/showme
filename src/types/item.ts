@@ -25,6 +25,8 @@ export type Item = {
   locationId?: string;
   brand?: string;
   purchaseChannel?: string;
+  imageUrls?: string[];
+  /** @deprecated Kept only so existing single-image inventory can be migrated. */
   imageUrl?: string;
   tags?: string[];
   note?: string;

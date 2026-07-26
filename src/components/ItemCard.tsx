@@ -1,4 +1,5 @@
 import type { Item } from "../types/item";
+import { getItemImageUrls } from "../utils/itemImages";
 import { calculateCurrentValue, calculateShelfLifeDailyCost, getRemainingDays, isLowStock } from "../utils/itemCalculations";
 import { formatCurrency, formatRemainingDays } from "../utils/formatters";
 import { CategoryBadge } from "./CategoryBadge";
@@ -15,12 +16,13 @@ type ItemCardProps = {
 export function ItemCard({ item, categoryName, locationName, onClick, compact }: ItemCardProps) {
   const remainingDays = getRemainingDays(item.finalExpireDate);
   const dailyCost = calculateShelfLifeDailyCost(item);
+  const coverImageUrl = getItemImageUrls(item)[0];
 
   return (
     <article className={`item-card ${compact ? "item-card--compact" : ""}`} onClick={onClick}>
       <div className="item-card__main">
         <div className="item-card__content">
-          {item.imageUrl ? <img className="item-card__image" src={item.imageUrl} alt="" /> : null}
+          {coverImageUrl ? <img className="item-card__image" src={coverImageUrl} alt="" /> : null}
           <div>
             <div className="item-card__title-row">
               <h3>{item.name}</h3>

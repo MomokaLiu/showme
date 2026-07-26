@@ -23,15 +23,21 @@ export default function DashboardPage() {
 
   return (
     <div className="page-stack">
-      <section className="dashboard-hero">
+      <button
+        type="button"
+        className="dashboard-hero"
+        onClick={() => navigate("/items")}
+        aria-label={`查看全部库存，共 ${activeItems.length} 件`}
+      >
         <div>
           <span>今日库存</span>
           <strong>{activeItems.length}</strong>
         </div>
-        <button type="button" className="primary-button primary-button--compact" onClick={() => navigate("/items/new")}>
-          添加物品
-        </button>
-      </section>
+        <span className="dashboard-hero__hint">
+          查看全部库存
+          <b aria-hidden="true">→</b>
+        </span>
+      </button>
 
       <section className="stat-grid">
         <StatCard label="临期" value={expiringItems.length} tone="orange" />

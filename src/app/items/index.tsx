@@ -68,13 +68,12 @@ export default function InventoryPage() {
         <EmptyState
           title="这里还没有物品"
           description="先添加一件物品，就能开始看库存、价值和有效期。"
-          action={
-            <button className="primary-button primary-button--compact" type="button" onClick={() => navigate("/items/new")}>
-              添加物品
-            </button>
-          }
         />
       )}
+
+      <button className="primary-button inventory-add-button" type="button" onClick={() => navigate("/items/new")}>
+        ＋ 添加物品
+      </button>
     </div>
   );
 }

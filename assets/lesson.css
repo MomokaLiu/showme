@@ -1,0 +1,191 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1f2925;
+  background: #edf2ef;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  line-height: 1.65;
+}
+
+main {
+  width: min(920px, calc(100% - 32px));
+  margin: 32px auto 64px;
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid #dce5df;
+  border-radius: 18px;
+  background: #fffefa;
+  box-shadow: 0 24px 80px rgba(32, 61, 50, 0.12);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 5vw, 48px);
+}
+
+h2 {
+  margin: 38px 0 14px;
+  color: #205f4d;
+}
+
+h3 {
+  margin: 24px 0 10px;
+}
+
+p,
+ul,
+ol {
+  margin: 10px 0;
+}
+
+a {
+  color: #196c55;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #5b6c64;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lede {
+  margin: 0;
+  color: #536159;
+  font-size: 18px;
+}
+
+.status-grid,
+.route-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.card,
+.callout {
+  padding: 16px 18px;
+  border: 1px solid #dce5df;
+  border-radius: 12px;
+  background: #f8fbf8;
+}
+
+.card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ok {
+  border-color: #bedfc9;
+  background: #eff9f2;
+}
+
+.warn {
+  border-color: #f0d19c;
+  background: #fff8e9;
+}
+
+.danger {
+  border-color: #edc1ba;
+  background: #fff1ef;
+}
+
+code {
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  background: #edf2ef;
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 16px;
+  border-radius: 10px;
+  background: #192520;
+  color: #edf8f1;
+  line-height: 1.5;
+}
+
+pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.checklist {
+  padding-left: 0;
+  list-style: none;
+}
+
+.checklist li {
+  position: relative;
+  margin: 9px 0;
+  padding-left: 30px;
+}
+
+.checklist li::before {
+  position: absolute;
+  top: 0.16em;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #7f978c;
+  border-radius: 5px;
+  content: "";
+}
+
+.next {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #dce5df;
+}
+
+@media (max-width: 680px) {
+  main {
+    width: min(100% - 18px, 920px);
+    margin-top: 9px;
+    padding: 22px 18px 36px;
+    border-radius: 12px;
+  }
+
+  .status-grid,
+  .route-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  :root {
+    background: #fff;
+  }
+
+  main {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  pre {
+    white-space: pre-wrap;
+  }
+}

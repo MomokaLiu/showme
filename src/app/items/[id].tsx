@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
+import { ImageLightbox } from "../../components/ImageLightbox";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useInventoryStore } from "../../store/itemStore";
 import {
@@ -10,6 +11,7 @@ import {
   calculateWasteAmount,
   getRemainingDays,
 } from "../../utils/itemCalculations";
+import { getItemImageUrls } from "../../utils/itemImages";
 import { actionText, formatCurrency, formatNumber, formatRemainingDays } from "../../utils/formatters";
 import { navigate } from "../router";
 
@@ -30,7 +32,9 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
   const [consumeQuantity, setConsumeQuantity] = useState(1);
   const [restockQuantity, setRestockQuantity] = useState(1);
   const [note, setNote] = useState("");
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const item = items.find((candidate) => candidate.id === itemId);
+  const imageUrls = item ? getItemImageUrls(item) : [];
 
   const itemLogs = useMemo(
     () => logs.filter((log) => log.itemId === itemId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -57,7 +61,29 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
   return (
     <div className="page-stack">
       <section className="detail-hero">
-        {item.imageUrl ? <img className="detail-hero__image" src={item.imageUrl} alt={`${item.name}的图片`} /> : null}
+        {imageUrls.length ? (
+          <div className="detail-gallery">
+            <button type="button" className="detail-gallery__primary" onClick={() => setPreviewIndex(0)}>
+              <img src={imageUrls[0]} alt={`${item.name}的图片`} />
+              <span>点击查看大图</span>
+            </button>
+            {imageUrls.length > 1 ? (
+              <div className="detail-gallery__thumbnails" aria-label={`共 ${imageUrls.length} 张图片`}>
+                {imageUrls.map((imageUrl, index) => (
+                  <button
+                    type="button"
+                    key={`${imageUrl}-${index}`}
+                    className={index === 0 ? "is-primary" : ""}
+                    aria-label={`查看第 ${index + 1} 张图片`}
+                    onClick={() => setPreviewIndex(index)}
+                  >
+                    <img src={imageUrl} alt="" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="detail-hero__content">
           <div>
             <span>{getCategoryName(item.categoryId)}</span>
@@ -169,6 +195,15 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
           <EmptyState title="暂无使用记录" />
         )}
       </section>
+
+      {previewIndex !== null ? (
+        <ImageLightbox
+          images={imageUrls}
+          initialIndex={previewIndex}
+          itemName={item.name}
+          onClose={() => setPreviewIndex(null)}
+        />
+      ) : null}
     </div>
   );
 }

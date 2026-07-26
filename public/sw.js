@@ -1,4 +1,4 @@
-const CACHE_NAME = "buwangwu-v2";
+const CACHE_NAME = "buwangwu-v3";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -20,6 +20,7 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+  if (requestUrl.pathname.startsWith("/__webdav/")) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(

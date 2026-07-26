@@ -23,8 +23,8 @@ export function App() {
           不忘物
         </button>
         <h1>{route.title}</h1>
-        <button className="icon-button icon-button--accent" type="button" onClick={() => navigate("/items/new")}>
-          添加
+        <button className="icon-button" type="button" onClick={() => navigate("/settings")}>
+          设置
         </button>
       </header>
       <main className="app-main">{isLoaded ? renderRoute(route) : <div className="loading">正在整理库存...</div>}</main>

@@ -4,6 +4,7 @@ import { useLocationStore } from "../store/locationStore";
 import type { Item } from "../types/item";
 import { toDateInputValue } from "../utils/dateUtils";
 import { optimizeImageFile } from "../utils/imageUpload";
+import { getItemImageUrls, MAX_ITEM_IMAGES, normalizeItemImageUrls } from "../utils/itemImages";
 import { calculateFinalExpireDate } from "../utils/itemCalculations";
 import { DatePickerField } from "./DatePickerField";
 import { NumberInputField } from "./NumberInputField";
@@ -23,6 +24,8 @@ export type ItemFormData = {
   purchaseChannel?: string;
   openDate?: string;
   afterOpenDays?: number;
+  imageUrls?: string[];
+  /** Clears the legacy single-image field when an existing item is saved. */
   imageUrl?: string;
   tags?: string[];
 };
@@ -52,10 +55,11 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
     purchaseChannel: initialItem?.purchaseChannel,
     openDate: initialItem?.openDate,
     afterOpenDays: initialItem?.afterOpenDays,
-    imageUrl: initialItem?.imageUrl,
+    imageUrls: initialItem ? getItemImageUrls(initialItem) : [],
     tags: initialItem?.tags,
   });
   const [tagText, setTagText] = useState(initialItem?.tags?.join(", ") ?? "");
+  const [networkImageUrl, setNetworkImageUrl] = useState("");
   const [imageError, setImageError] = useState<string>();
   const [submitError, setSubmitError] = useState<string>();
   const [isImageProcessing, setIsImageProcessing] = useState(false);
@@ -83,20 +87,51 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
 
   async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
+    const files = Array.from(input.files ?? []);
+    if (!files.length) return;
+
+    const availableSlots = MAX_ITEM_IMAGES - (form.imageUrls?.length ?? 0);
+    if (files.length > availableSlots) {
+      setImageError(`单个物品最多上传 ${MAX_ITEM_IMAGES} 张图片，当前还可添加 ${availableSlots} 张。`);
+      input.value = "";
+      return;
+    }
 
     setImageError(undefined);
     setIsImageProcessing(true);
     try {
-      const imageUrl = await optimizeImageFile(file);
-      updateField("imageUrl", imageUrl);
+      const imageUrls = await Promise.all(files.map((file) => optimizeImageFile(file)));
+      setForm((current) => ({
+        ...current,
+        imageUrls: normalizeItemImageUrls([...(current.imageUrls ?? []), ...imageUrls]),
+      }));
     } catch (error) {
       setImageError(error instanceof Error ? error.message : "图片处理失败，请重新选择。");
     } finally {
       setIsImageProcessing(false);
       input.value = "";
     }
+  }
+
+  function handleAddNetworkImage() {
+    const imageUrl = networkImageUrl.trim();
+    if (!imageUrl) return;
+    if ((form.imageUrls?.length ?? 0) >= MAX_ITEM_IMAGES) {
+      setImageError(`单个物品最多上传 ${MAX_ITEM_IMAGES} 张图片。`);
+      return;
+    }
+
+    try {
+      const parsedUrl = new URL(imageUrl);
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) throw new Error();
+    } catch {
+      setImageError("请输入以 http:// 或 https:// 开头的有效图片网址。");
+      return;
+    }
+
+    updateField("imageUrls", normalizeItemImageUrls([...(form.imageUrls ?? []), imageUrl]));
+    setNetworkImageUrl("");
+    setImageError(undefined);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -115,7 +150,8 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
         brand: form.brand?.trim() || undefined,
         purchaseChannel: form.purchaseChannel?.trim() || undefined,
         openDate: form.openDate || undefined,
-        imageUrl: form.imageUrl?.trim() || undefined,
+        imageUrls: normalizeItemImageUrls(form.imageUrls ?? []),
+        imageUrl: undefined,
         tags: tagText
           .split(",")
           .map((tag) => tag.trim())
@@ -139,44 +175,6 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
           required
         />
       </label>
-
-      <section className="image-upload" aria-label="物品图片">
-        <div className="image-upload__header">
-          <span>物品图片</span>
-          <small>可选</small>
-        </div>
-        {form.imageUrl ? (
-          <img className="image-upload__preview" src={form.imageUrl} alt="物品图片预览" />
-        ) : (
-          <div className="image-upload__empty">选择一张图片，保存后可在库存和详情中查看</div>
-        )}
-        <div className="image-upload__actions">
-          <label className={isImageProcessing ? "secondary-button is-disabled" : "secondary-button"}>
-            {isImageProcessing ? "正在处理..." : form.imageUrl ? "更换图片" : "选择图片"}
-            <input
-              className="visually-hidden"
-              type="file"
-              accept="image/*"
-              disabled={isImageProcessing}
-              onChange={handleImageChange}
-            />
-          </label>
-          {form.imageUrl ? (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                updateField("imageUrl", undefined);
-                setImageError(undefined);
-              }}
-            >
-              移除图片
-            </button>
-          ) : null}
-        </div>
-        <small className="image-upload__hint">图片会压缩后保存在当前设备，不会自动上传到云端。</small>
-        {imageError ? <p className="form-error" role="alert">{imageError}</p> : null}
-      </section>
 
       <div className="field-grid">
         <label className="field">
@@ -275,15 +273,6 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
             />
           </div>
           <label className="field">
-            <span>网络图片地址</span>
-            <input
-              value={form.imageUrl?.startsWith("data:") ? "" : form.imageUrl ?? ""}
-              onChange={(event) => updateField("imageUrl", event.target.value)}
-              placeholder="https://..."
-            />
-            {form.imageUrl?.startsWith("data:") ? <small>填写网址将替换已选择的本地图片。</small> : null}
-          </label>
-          <label className="field">
             <span>标签</span>
             <input value={tagText} onChange={(event) => setTagText(event.target.value)} placeholder="逗号分隔" />
           </label>
@@ -293,6 +282,80 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
           </label>
         </div>
       ) : null}
+
+      <section className="image-upload" aria-label="物品图片（可选）">
+        <div className="image-upload__header">
+          <span>物品图片</span>
+          <small>可选 · {form.imageUrls?.length ?? 0}/{MAX_ITEM_IMAGES}</small>
+        </div>
+
+        {form.imageUrls?.length ? (
+          <div className="image-upload__grid">
+            {form.imageUrls.map((imageUrl, index) => (
+              <div className="image-upload__item" key={`${imageUrl}-${index}`}>
+                <img src={imageUrl} alt={`物品图片预览 ${index + 1}`} />
+                <button
+                  type="button"
+                  aria-label={`删除第 ${index + 1} 张图片`}
+                  onClick={() => {
+                    updateField(
+                      "imageUrls",
+                      form.imageUrls?.filter((_, imageIndex) => imageIndex !== index),
+                    );
+                    setImageError(undefined);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="image-upload__empty">无需上传图片也可以保存物品</div>
+        )}
+
+        {(form.imageUrls?.length ?? 0) < MAX_ITEM_IMAGES ? (
+          <>
+            <div className="image-upload__actions">
+              <label className={isImageProcessing ? "secondary-button is-disabled" : "secondary-button"}>
+                {isImageProcessing ? "正在处理..." : "＋ 添加图片"}
+                <input
+                  className="visually-hidden"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={isImageProcessing}
+                  onChange={handleImageChange}
+                />
+              </label>
+              <small>可一次选择多张</small>
+            </div>
+            <div className="image-upload__url">
+              <input
+                type="text"
+                inputMode="url"
+                value={networkImageUrl}
+                onChange={(event) => setNetworkImageUrl(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  handleAddNetworkImage();
+                }}
+                placeholder="或粘贴图片网址 https://..."
+                aria-label="网络图片地址"
+              />
+              <button type="button" onClick={handleAddNetworkImage} disabled={!networkImageUrl.trim()}>
+                添加网址
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="image-upload__limit">已达到 5 张上限，删除图片后可继续添加。</p>
+        )}
+
+        <small className="image-upload__hint">本地图片会压缩后保存在当前设备，不会自动上传到云端。</small>
+        {imageError ? <p className="form-error" role="alert">{imageError}</p> : null}
+      </section>
 
       {submitError ? <p className="form-error" role="alert">{submitError}</p> : null}
 
