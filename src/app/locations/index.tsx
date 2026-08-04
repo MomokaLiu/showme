@@ -9,12 +9,26 @@ export default function LocationsPage() {
   const [editingId, setEditingId] = useState<string>();
   const [editingName, setEditingName] = useState("");
   const [message, setMessage] = useState("");
+  const [managing, setManaging] = useState(false);
   const sortedLocations = useMemo(
     () => [...locations].sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name)),
     [locations],
   );
   const activeLocations = sortedLocations.filter((location) => !location.isArchived);
   const archivedLocations = sortedLocations.filter((location) => location.isArchived);
+  const itemCountByLocation = useMemo(() => {
+    const counts = new Map<string, number>();
+    items.filter((item) => !item.isPrivate).forEach((item) => {
+      if (item.locationId) counts.set(item.locationId, (counts.get(item.locationId) ?? 0) + 1);
+    });
+    return counts;
+  }, [items]);
+  const displayedLocations = managing
+    ? activeLocations
+    : activeLocations.filter((location) => (itemCountByLocation.get(location.id) ?? 0) > 0);
+  const unusedLocations = managing
+    ? []
+    : activeLocations.filter((location) => (itemCountByLocation.get(location.id) ?? 0) === 0);
 
   async function submitNewLocation(event: FormEvent) {
     event.preventDefault();
@@ -39,21 +53,26 @@ export default function LocationsPage() {
 
   return (
     <div className="page-stack locations-page">
-      <section className="location-intro">
-        <span>按房间、柜子或收纳盒整理</span>
-        <h2>从位置开始找，比翻完整库存更快</h2>
-      </section>
+      <div className="location-page-head">
+        <section className="location-intro">
+          <span>按房间、柜子或收纳盒整理</span>
+          <h2>从位置开始找，比翻完整库存更快</h2>
+        </section>
+        <button className="secondary-button" type="button" onClick={() => setManaging((value) => !value)}>
+          {managing ? "完成" : "管理"}
+        </button>
+      </div>
 
-      <form className="location-create-form" onSubmit={submitNewLocation}>
+      {managing ? <form className="location-create-form" onSubmit={submitNewLocation}>
         <input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="新增位置，例如：书房抽屉" aria-label="新位置名称" />
         <button className="primary-button" type="submit" disabled={!newName.trim()}>添加</button>
-      </form>
+      </form> : null}
       {message ? <p className="form-message" role="status">{message}</p> : null}
 
       {activeLocations.length ? (
         <div className="location-list">
-          {activeLocations.map((location, index) => {
-            const count = items.filter((item) => item.locationId === location.id && !item.isPrivate).length;
+          {displayedLocations.map((location, index) => {
+            const count = itemCountByLocation.get(location.id) ?? 0;
             const isEditing = editingId === location.id;
             return (
               <article className="location-row" key={location.id}>
@@ -69,21 +88,33 @@ export default function LocationsPage() {
                     <b aria-hidden="true">→</b>
                   </button>
                 )}
-                {!isEditing ? (
+                {!isEditing && managing ? (
                   <div className="location-row__actions">
-                    <button type="button" disabled={index === 0} onClick={() => moveLocation(location.id, -1)}>↑</button>
-                    <button type="button" disabled={index === activeLocations.length - 1} onClick={() => moveLocation(location.id, 1)}>↓</button>
-                    <button type="button" onClick={() => { setEditingId(location.id); setEditingName(location.name); }}>重命名</button>
+                    <button type="button" onClick={() => { setEditingId(location.id); setEditingName(location.name); }}>编辑</button>
+                    <button type="button" disabled={index === 0} onClick={() => moveLocation(location.id, -1)}>上移</button>
+                    <button type="button" disabled={index === displayedLocations.length - 1} onClick={() => moveLocation(location.id, 1)}>下移</button>
                     {location.id !== "other" ? <button type="button" onClick={() => archiveLocation(location.id)}>归档</button> : null}
                   </div>
                 ) : null}
               </article>
             );
           })}
+          {unusedLocations.length ? (
+            <details className="unused-location-list">
+              <summary>暂无物品的位置 <span>{unusedLocations.length}</span></summary>
+              <div>
+                {unusedLocations.map((location) => (
+                  <button key={location.id} type="button" onClick={() => navigate(`/locations/${encodeURIComponent(location.id)}`)}>
+                    {location.name}<span>›</span>
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
       ) : <EmptyState title="还没有可用位置" description="添加一个房间、柜子或收纳盒开始整理。" />}
 
-      {archivedLocations.length ? (
+      {managing && archivedLocations.length ? (
         <details className="archived-list">
           <summary>已归档位置（{archivedLocations.length}）</summary>
           {archivedLocations.map((location) => (

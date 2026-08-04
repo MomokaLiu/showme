@@ -28,6 +28,7 @@ export default function DashboardPage() {
     <div className="page-stack dashboard-v2">
       <section className="home-search-panel">
         <span>快速找到你的物品</span>
+        <h2>东西放哪了？</h2>
         <form className="home-search" onSubmit={submitSearch}>
           <input
             value={query}
@@ -35,31 +36,21 @@ export default function DashboardPage() {
             placeholder="搜索名称、品牌、标签或位置"
             aria-label="搜索库存"
           />
-          <button type="submit">搜索</button>
+          <button type="submit" aria-label="搜索">搜索</button>
         </form>
         <div className="home-primary-actions">
-          <button className="primary-button" type="button" onClick={() => navigate("/items/new")}>＋ 快速添加</button>
-          <button className="secondary-button" type="button" onClick={() => navigate("/locations")}>按位置查找</button>
+          <button className="primary-button" type="button" onClick={() => navigate("/items/new")}>＋ 记一件物品</button>
+          <button className="text-button" type="button" onClick={() => navigate("/locations")}>按位置找 →</button>
         </div>
       </section>
 
-      <section className="home-focus-grid" aria-label="库存概览">
+      <section className="home-summary-line" aria-label="库存概览">
         <button type="button" onClick={() => navigate("/items")}>
-          <strong>{activeItems.length}</strong>
-          <span>在库物品</span>
+          <strong>{activeItems.length}</strong> 件在库
         </button>
-        <button type="button" onClick={() => navigate("/items?location=")}>
-          <strong>{incompleteItems.length}</strong>
-          <span>待补位置</span>
-        </button>
-        <button type="button" onClick={() => navigate("/tasks")}>
-          <strong>{reminderCount}</strong>
-          <span>到期待办</span>
-        </button>
-        <button type="button" onClick={() => navigate("/tasks/shopping")}>
-          <strong>{shoppingCount}</strong>
-          <span>待购买</span>
-        </button>
+        {incompleteItems.length ? <button type="button" onClick={() => navigate("/items?location=")}>{incompleteItems.length} 件待补位置</button> : null}
+        {reminderCount ? <button type="button" onClick={() => navigate("/tasks")}>{reminderCount} 项到期待办</button> : null}
+        {shoppingCount ? <button type="button" onClick={() => navigate("/tasks/shopping")}>{shoppingCount} 项待购买</button> : null}
       </section>
 
       {incompleteItems.length ? (
@@ -92,9 +83,8 @@ export default function DashboardPage() {
           </div>
         ) : (
           <EmptyState
-            title="先记下第一件物品"
-            description="只需名称和位置，之后随时可以完善。"
-            action={<button className="primary-button" onClick={() => navigate("/items/new")}>添加物品</button>}
+            title="这里会显示最近的物品"
+            description="从上方记下第一件物品，只需名称和位置。"
           />
         )}
       </section>
@@ -119,10 +109,6 @@ export default function DashboardPage() {
           </div>
         </section>
       ) : null}
-
-      <button className="home-insights-link" type="button" onClick={() => navigate("/insights")}>
-        查看库存价值、使用成本和榜单 →
-      </button>
     </div>
   );
 }

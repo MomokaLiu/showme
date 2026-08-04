@@ -115,22 +115,27 @@ export default function SettingsPage() {
 
   return (
     <div className="page-stack settings-page">
-      <section className="settings-hub-grid">
-        <button type="button" onClick={() => navigate("/locations")}><strong>存放位置</strong><span>新增、重命名和归档</span></button>
-        <button type="button" onClick={() => navigate("/insights")}><strong>数据洞察</strong><span>价值、成本和浪费</span></button>
-        <button type="button" onClick={() => navigate("/rankings")}><strong>库存榜单</strong><span>闲置与使用价值</span></button>
-        <button type="button" onClick={() => navigate("/items/private")}><strong>私密库存</strong><span>验证后查看</span></button>
+      <section className="settings-link-list">
+        <button type="button" onClick={() => navigate("/locations")}><span><strong>存放位置</strong><small>房间、柜子和收纳盒</small></span><b>›</b></button>
+        <button type="button" onClick={() => navigate("/insights")}><span><strong>数据洞察</strong><small>价值、成本和浪费</small></span><b>›</b></button>
+        <button type="button" onClick={() => navigate("/rankings")}><span><strong>库存榜单</strong><small>闲置与使用价值</small></span><b>›</b></button>
       </section>
 
-      <section className="section-block">
-        <div className="section-title"><h2>数据安全</h2></div>
-        <DataSafetyCard />
-      </section>
+      <div className="settings-group-label">管理</div>
 
-      <section className="section-block">
-        <div className="section-title"><h2>分类管理</h2></div>
-        <CategorySettingsCard />
-      </section>
+      <details className="settings-details">
+        <summary><strong>分类管理</strong><span>{categories.filter((category) => !category.isArchived).length} 个使用中</span></summary>
+        <section className="section-block settings-details__body">
+          <CategorySettingsCard />
+        </section>
+      </details>
+
+      <details className="settings-details">
+        <summary><strong>数据安全</strong><span>备份、导入与导出</span></summary>
+        <section className="section-block settings-details__body">
+          <DataSafetyCard />
+        </section>
+      </details>
 
       <details className="settings-details">
         <summary><strong>AI 图片识别</strong><span>模型与密钥配置</span></summary>
@@ -338,40 +343,40 @@ export default function SettingsPage() {
       </section>
       </details>
 
-      {import.meta.env.DEV ? <section className="section-block">
-        <div className="section-title">
-          <h2>安卓真机测试</h2>
-        </div>
-        <div className="android-test-card">
-          <strong>{androidTestUrl}</strong>
-          <span>电脑运行 npm run dev:android 后，手机和电脑连同一 Wi-Fi，再用手机 Chrome 打开电脑局域网地址。</span>
-          <span>可运行 npm run android:url 查看可用地址。</span>
-        </div>
-      </section> : null}
+      {import.meta.env.DEV ? <details className="settings-details">
+        <summary><strong>安卓真机测试</strong><span>仅开发环境</span></summary>
+        <section className="section-block settings-details__body">
+          <div className="android-test-card">
+            <strong>{androidTestUrl}</strong>
+            <span>电脑运行 npm run dev:android 后，手机和电脑连同一 Wi-Fi，再用手机 Chrome 打开电脑局域网地址。</span>
+            <span>可运行 npm run android:url 查看可用地址。</span>
+          </div>
+        </section>
+      </details> : null}
 
-      <section className="section-block">
-        <div className="section-title">
-          <h2>数据概览</h2>
-        </div>
-        <div className="detail-grid">
-          <div className="detail-row">
-            <span>库存记录</span>
-            <strong>{items.length}</strong>
+      <details className="settings-details">
+        <summary><strong>数据概览</strong><span>{items.length} 件库存</span></summary>
+        <section className="section-block settings-details__body">
+          <div className="detail-grid">
+            <div className="detail-row">
+              <span>库存记录</span>
+              <strong>{items.length}</strong>
+            </div>
+            <div className="detail-row">
+              <span>购物项</span>
+              <strong>{shoppingItems.length}</strong>
+            </div>
+            <div className="detail-row">
+              <span>分类</span>
+              <strong>{categories.length}</strong>
+            </div>
+            <div className="detail-row">
+              <span>位置</span>
+              <strong>{locations.length}</strong>
+            </div>
           </div>
-          <div className="detail-row">
-            <span>购物项</span>
-            <strong>{shoppingItems.length}</strong>
-          </div>
-          <div className="detail-row">
-            <span>分类</span>
-            <strong>{categories.length}</strong>
-          </div>
-          <div className="detail-row">
-            <span>位置</span>
-            <strong>{locations.length}</strong>
-          </div>
-        </div>
-      </section>
+        </section>
+      </details>
 
     </div>
   );

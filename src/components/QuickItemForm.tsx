@@ -139,21 +139,12 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
 
   return (
     <form className="form-stack quick-create" onSubmit={handleSubmit}>
-      <div className="step-indicator" aria-label="录入进度">
-        <strong>1</strong>
-        <span>快速创建</span>
-        <i />
-        <b>2</b>
-        <span>完善信息</span>
-      </div>
-
       <section className="form-section">
         <div className="form-section__title">
           <div>
-            <span>Step 1</span>
-            <h2>先记下来，稍后再完善</h2>
+            <h2>名称和位置</h2>
+            <span>10 秒记下来，其他资料以后再补</span>
           </div>
-          <small>只需名称</small>
         </div>
         <label className="field">
           <span>物品名称</span>
@@ -191,114 +182,110 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
         </div>
       </section>
 
-      <details className="ai-recognition-card ai-recognition-card--compact">
-        <summary>用照片或 AI 辅助录入（可选）</summary>
-        <div className="ai-recognition-card__body">
-        <div className="form-section__title">
-          <div>
-            <span>AI 辅助（可选）</span>
-            <h2>拍照自动填写</h2>
+      <details className="quick-extras">
+        <summary>
+          <span><strong>照片与智能识别</strong><small>{form.imageUrls.length ? `已添加 ${form.imageUrls.length} 张` : "可选"}</small></span>
+        </summary>
+        <div className="quick-extras__body">
+          <div className="quick-extras__intro">
+            <strong>拍照自动填写</strong>
+            <span>识别结果只会填入草稿，由你确认后保存。</span>
           </div>
-          <small>需确认</small>
-        </div>
-        <p>识别名称、品牌、类别、型号和标签建议；结果只填入草稿，不会自动保存。</p>
-        <div className="ai-recognition-actions">
-          <label className={busy ? "primary-button is-disabled" : "primary-button"}>
-            {busy ? "正在识别..." : "📷 拍照识别"}
-            <input
-              className="visually-hidden"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              disabled={busy}
-              onChange={handleRecognitionImage}
-            />
-          </label>
-          <label className={busy ? "secondary-button is-disabled" : "secondary-button"}>
-            从相册识别
-            <input
-              className="visually-hidden"
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              onChange={handleRecognitionImage}
-            />
-          </label>
-        </div>
-        {suggestion ? (
-          <div className="ai-suggestion">
-            <div className="ai-suggestion__fields">
-              {suggestion.name ? <Suggestion label="名称" value={suggestion.name} /> : null}
-              {suggestion.brand ? <Suggestion label="品牌" value={suggestion.brand} /> : null}
-              {suggestion.model ? <Suggestion label="型号" value={suggestion.model} /> : null}
-              {suggestion.categoryId ? (
-                <Suggestion
-                  label="分类"
-                  value={categories.find((category) => category.id === suggestion.categoryId)?.name ?? suggestion.categoryId}
-                />
-              ) : null}
-              {suggestion.purchaseChannel ? <Suggestion label="渠道" value={suggestion.purchaseChannel} /> : null}
-              {suggestion.totalPrice !== undefined ? <Suggestion label="参考价格" value={`¥${suggestion.totalPrice}`} /> : null}
-              {suggestion.tags?.length ? <Suggestion label="标签" value={suggestion.tags.join("、")} /> : null}
+          <div className="ai-recognition-actions">
+            <label className={busy ? "primary-button is-disabled" : "primary-button"}>
+              {busy ? "正在识别..." : "拍照识别"}
+              <input
+                className="visually-hidden"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={busy}
+                onChange={handleRecognitionImage}
+              />
+            </label>
+            <label className={busy ? "secondary-button is-disabled" : "secondary-button"}>
+              从相册识别
+              <input
+                className="visually-hidden"
+                type="file"
+                accept="image/*"
+                disabled={busy}
+                onChange={handleRecognitionImage}
+              />
+            </label>
+          </div>
+          {suggestion ? (
+            <div className="ai-suggestion">
+              <div className="ai-suggestion__fields">
+                {suggestion.name ? <Suggestion label="名称" value={suggestion.name} /> : null}
+                {suggestion.brand ? <Suggestion label="品牌" value={suggestion.brand} /> : null}
+                {suggestion.model ? <Suggestion label="型号" value={suggestion.model} /> : null}
+                {suggestion.categoryId ? (
+                  <Suggestion
+                    label="分类"
+                    value={categories.find((category) => category.id === suggestion.categoryId)?.name ?? suggestion.categoryId}
+                  />
+                ) : null}
+                {suggestion.purchaseChannel ? <Suggestion label="渠道" value={suggestion.purchaseChannel} /> : null}
+                {suggestion.totalPrice !== undefined ? <Suggestion label="参考价格" value={`¥${suggestion.totalPrice}`} /> : null}
+                {suggestion.tags?.length ? <Suggestion label="标签" value={suggestion.tags.join("、")} /> : null}
+              </div>
+              <button className="secondary-button" type="button" onClick={applySuggestion} disabled={isSuggestionApplied}>
+                {isSuggestionApplied ? "已应用到草稿" : "确认并应用识别结果"}
+              </button>
             </div>
-            <button className="secondary-button" type="button" onClick={applySuggestion} disabled={isSuggestionApplied}>
-              {isSuggestionApplied ? "已应用到草稿" : "确认并应用识别结果"}
-            </button>
-          </div>
-        ) : null}
+          ) : null}
+
+          <section className="image-upload" aria-label="物品图片（可选）">
+            <div className="image-upload__header">
+              <span>物品图片</span>
+              <small>{form.imageUrls.length}/{MAX_ITEM_IMAGES}</small>
+            </div>
+            {form.imageUrls.length ? (
+              <div className="image-upload__grid">
+                {form.imageUrls.map((imageUrl, index) => (
+                  <div className="image-upload__item" key={`${imageUrl}-${index}`}>
+                    <img src={imageUrl} alt={`物品图片预览 ${index + 1}`} />
+                    <button
+                      type="button"
+                      aria-label={`删除第 ${index + 1} 张图片`}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          imageUrls: current.imageUrls.filter((_, imageIndex) => imageIndex !== index),
+                        }))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {form.imageUrls.length < MAX_ITEM_IMAGES ? (
+              <label className={busy ? "secondary-button is-disabled" : "secondary-button"}>
+                ＋ 添加普通图片
+                <input
+                  className="visually-hidden"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={busy}
+                  onChange={handleRegularImages}
+                />
+              </label>
+            ) : (
+              <p className="image-upload__limit">已达到 5 张上限，删除图片后可继续添加。</p>
+            )}
+          </section>
         </div>
       </details>
-
-      <section className="image-upload" aria-label="物品图片（可选）">
-        <div className="image-upload__header">
-          <span>物品图片</span>
-          <small>可选 · {form.imageUrls.length}/{MAX_ITEM_IMAGES}</small>
-        </div>
-        {form.imageUrls.length ? (
-          <div className="image-upload__grid">
-            {form.imageUrls.map((imageUrl, index) => (
-              <div className="image-upload__item" key={`${imageUrl}-${index}`}>
-                <img src={imageUrl} alt={`物品图片预览 ${index + 1}`} />
-                <button
-                  type="button"
-                  aria-label={`删除第 ${index + 1} 张图片`}
-                  onClick={() =>
-                    setForm((current) => ({
-                      ...current,
-                      imageUrls: current.imageUrls.filter((_, imageIndex) => imageIndex !== index),
-                    }))
-                  }
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="image-upload__empty">不上传图片也可以创建</div>
-        )}
-        {form.imageUrls.length < MAX_ITEM_IMAGES ? (
-          <label className={busy ? "secondary-button is-disabled" : "secondary-button"}>
-            ＋ 添加图片
-            <input
-              className="visually-hidden"
-              type="file"
-              accept="image/*"
-              multiple
-              disabled={busy}
-              onChange={handleRegularImages}
-            />
-          </label>
-        ) : (
-          <p className="image-upload__limit">已达到 5 张上限，删除图片后可继续添加。</p>
-        )}
-      </section>
 
       {message ? <p className={suggestion ? "form-message" : "form-message"} role="status">{message}</p> : null}
       <button className="primary-button" type="submit" disabled={busy || submitting}>
         {submitting ? "正在保存..." : "保存物品"}
       </button>
-      <small className="quick-create__skip">创建后可直接返回，其他信息随时补充。</small>
+      <small className="quick-create__skip">保存后可继续完善分类、价格和提醒。</small>
     </form>
   );
 }

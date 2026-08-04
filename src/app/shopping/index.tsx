@@ -40,32 +40,37 @@ export default function ShoppingPage({ embedded = false }: { embedded?: boolean 
   return (
     <div className={embedded ? "embedded-page-stack" : "page-stack"}>
       <form className="shopping-form" onSubmit={handleSubmit}>
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="要买什么" />
-        <div className="field-grid">
-          <input
-            type="number"
-            min="0"
-            step="0.1"
-            value={quantity ?? ""}
-            onChange={(event) => setQuantity(event.target.value === "" ? undefined : Number(event.target.value))}
-            placeholder="数量"
-          />
-          <input value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="单位" />
+        <div className="shopping-primary-row">
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="要买什么" aria-label="购物项名称" />
+          <button type="submit" className="primary-button" disabled={!name.trim()}>
+            添加
+          </button>
         </div>
-        <div className="field-grid">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={estimatedPrice ?? ""}
-            onChange={(event) => setEstimatedPrice(event.target.value === "" ? undefined : Number(event.target.value))}
-            placeholder="预估价格"
-          />
-          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="备注" />
-        </div>
-        <button type="submit" className="primary-button">
-          加入购物清单
-        </button>
+        <details className="shopping-extras">
+          <summary>补充数量、价格或备注（可选）</summary>
+          <div className="field-grid">
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={quantity ?? ""}
+              onChange={(event) => setQuantity(event.target.value === "" ? undefined : Number(event.target.value))}
+              placeholder="数量"
+            />
+            <input value={unit} onChange={(event) => setUnit(event.target.value)} placeholder="单位" />
+          </div>
+          <div className="field-grid">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={estimatedPrice ?? ""}
+              onChange={(event) => setEstimatedPrice(event.target.value === "" ? undefined : Number(event.target.value))}
+              placeholder="预估价格"
+            />
+            <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="备注" />
+          </div>
+        </details>
       </form>
 
       <ShoppingSection
@@ -76,13 +81,13 @@ export default function ShoppingPage({ embedded = false }: { embedded?: boolean 
         onDelete={deleteShoppingItem}
         onConvert={convertToInventory}
       />
-      <ShoppingSection
+      {purchasedItems.length ? <ShoppingSection
         title="已购买"
         items={purchasedItems}
         emptyTitle="暂无已购买项目"
         onToggle={toggleShoppingPurchased}
         onDelete={deleteShoppingItem}
-      />
+      /> : null}
     </div>
   );
 }

@@ -37,9 +37,15 @@ export function CategorySettingsCard() {
             ) : <span>{category.name}</span>}
             <div>
               {editingId === category.id ? (
-                <><button type="button" onClick={() => save(category.id)}>保存</button><button type="button" onClick={() => setEditingId(undefined)}>取消</button></>
+                <>
+                  <button className="primary-button" type="button" onClick={() => save(category.id)}>保存</button>
+                  <button type="button" onClick={() => setEditingId(undefined)}>取消</button>
+                  <button type="button" disabled={index === 0} onClick={() => moveCategory(category.id, -1)}>上移</button>
+                  <button type="button" disabled={index === active.length - 1} onClick={() => moveCategory(category.id, 1)}>下移</button>
+                  {category.id !== "other" ? <button className="danger-text-button" type="button" onClick={() => archiveCategory(category.id)}>归档</button> : null}
+                </>
               ) : (
-                <><button type="button" disabled={index === 0} onClick={() => moveCategory(category.id, -1)}>↑</button><button type="button" disabled={index === active.length - 1} onClick={() => moveCategory(category.id, 1)}>↓</button><button type="button" onClick={() => { setEditingId(category.id); setEditingName(category.name); }}>重命名</button>{category.id !== "other" ? <button type="button" onClick={() => archiveCategory(category.id)}>归档</button> : null}</>
+                <button type="button" onClick={() => { setEditingId(category.id); setEditingName(category.name); }}>编辑</button>
               )}
             </div>
           </div>

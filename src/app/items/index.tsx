@@ -25,6 +25,7 @@ export default function InventoryPage({
   );
   const [sort, setSort] = useState<InventorySearchSort>(initialQuery ? "relevance" : "updated");
   const [viewMode, setViewMode] = useState<InventoryViewMode>(() => loadInventoryViewMode());
+  const [filtersOpen, setFiltersOpen] = useState(initialLocationId !== undefined);
   const publicItems = items.filter((item) => !item.isPrivate);
   const activeCategories = categories.filter((category) => !category.isArchived).sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name));
   const activeLocations = locations.filter((location) => !location.isArchived).sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name));
@@ -33,6 +34,7 @@ export default function InventoryPage({
     setQuery(initialQuery);
     setLocationId(initialLocationId === "" ? "missing" : initialLocationId || "all");
     setSort(initialQuery ? "relevance" : "updated");
+    if (initialLocationId !== undefined) setFiltersOpen(true);
   }, [initialLocationId, initialQuery]);
 
   const visibleItems = useMemo(
@@ -66,13 +68,19 @@ export default function InventoryPage({
   }
 
   const hasFilters = Boolean(query) || status !== "all" || categoryId !== "all" || locationId !== "all";
+  const activeFilterCount = Number(status !== "all") + Number(categoryId !== "all") + Number(locationId !== "all");
 
   return (
     <div className="page-stack inventory-v2">
       <div className="inventory-top-actions">
         <button type="button" onClick={() => navigate("/locations")}>⌖ 按位置查找</button>
-        <button type="button" onClick={() => navigate("/items/private")}>私密库存</button>
-        <button type="button" onClick={() => navigate("/insights")}>数据洞察</button>
+        <details>
+          <summary>更多</summary>
+          <div>
+            <button type="button" onClick={() => navigate("/items/private")}>私密库存</button>
+            <button type="button" onClick={() => navigate("/insights")}>数据洞察</button>
+          </div>
+        </details>
       </div>
 
       <div className="inventory-search-box">
@@ -88,7 +96,29 @@ export default function InventoryPage({
         {query ? <button type="button" onClick={() => setQuery("")} aria-label="清除搜索">×</button> : null}
       </div>
 
-      <div className="inventory-filter-grid">
+      <div className="inventory-toolbar">
+        <button
+          className={activeFilterCount ? "filter-trigger is-active" : "filter-trigger"}
+          type="button"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          筛选{activeFilterCount ? ` · ${activeFilterCount}` : ""}
+        </button>
+        <label className="inventory-sort-control">
+          <span className="sr-only">排序</span>
+          <select value={sort} onChange={(event) => setSort(event.target.value as InventorySearchSort)}>
+            {query ? <option value="relevance">最相关</option> : null}
+            <option value="updated">最近更新</option>
+            <option value="expire">即将过期</option>
+            <option value="purchase">最近购买</option>
+            <option value="price">价格最高</option>
+            <option value="quantity">数量最少</option>
+          </select>
+        </label>
+      </div>
+
+      {filtersOpen ? <div className="inventory-filter-grid">
         <label>
           <span>状态</span>
           <select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
@@ -115,18 +145,7 @@ export default function InventoryPage({
             {activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
         </label>
-        <label>
-          <span>排序</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value as InventorySearchSort)}>
-            {query ? <option value="relevance">最相关</option> : null}
-            <option value="updated">最近更新</option>
-            <option value="expire">即将过期</option>
-            <option value="purchase">最近购买</option>
-            <option value="price">价格最高</option>
-            <option value="quantity">数量最少</option>
-          </select>
-        </label>
-      </div>
+      </div> : null}
 
       <div className="inventory-result-bar">
         <span>找到 {visibleItems.length} 件</span>
@@ -156,7 +175,7 @@ export default function InventoryPage({
           action={
             <div className="empty-actions">
               {hasFilters ? <button type="button" onClick={clearSearch}>清除筛选</button> : null}
-              <button className="primary-button" type="button" onClick={() => navigate(query ? `/items/new?name=${encodeURIComponent(query)}` : "/items/new")}>添加物品</button>
+              {query ? <button className="primary-button" type="button" onClick={() => navigate(`/items/new?name=${encodeURIComponent(query)}`)}>添加“{query}”</button> : null}
             </div>
           }
         />
