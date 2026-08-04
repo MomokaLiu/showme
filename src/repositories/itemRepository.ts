@@ -1,5 +1,5 @@
 import type { Item } from "../types/item";
-import { LocalStorageRepository } from "./localStorageRepository";
+import { IndexedDbRepository } from "./indexedDbRepository";
 
 export interface ItemRepository {
   getAll(): Promise<Item[]>;
@@ -10,4 +10,4 @@ export interface ItemRepository {
   replaceAll(items: Item[]): Promise<void>;
 }
 
-export const itemRepository: ItemRepository = new LocalStorageRepository<Item>("buwangwu.items");
+export const itemRepository: ItemRepository = new IndexedDbRepository<Item>("items");

@@ -1,4 +1,4 @@
 import type { ShoppingItem } from "../types/shopping";
-import { LocalStorageRepository } from "./localStorageRepository";
+import { IndexedDbRepository } from "./indexedDbRepository";
 
-export const shoppingRepository = new LocalStorageRepository<ShoppingItem>("buwangwu.shopping");
+export const shoppingRepository = new IndexedDbRepository<ShoppingItem>("shoppingItems");

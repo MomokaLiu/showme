@@ -7,10 +7,10 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-const bundledModulePath = join(tmpdir(), `showme-item-calculations-${process.pid}.mjs`);
+const bundledModulePath = join(tmpdir(), `showme-daily-cost-calculator-${process.pid}.mjs`);
 
 await build({
-  entryPoints: ["src/utils/itemCalculations.ts"],
+  entryPoints: ["src/services/dailyCostCalculator.ts"],
   bundle: true,
   format: "esm",
   outfile: bundledModulePath,
@@ -38,37 +38,23 @@ function createItem(overrides = {}) {
   };
 }
 
-test("an active item with unlimited shelf life uses the current date for its actual daily cost", () => {
-  const item = createItem();
+test("a 1000 yuan item used for 365 days costs 2.74 yuan per day", () => {
+  const item = createItem({ purchaseDate: "2025-01-01", totalPrice: 1000 });
 
-  assert.equal(calculateActualDailyCost(item, "2026-07-22"), 10);
+  assert.equal(Number(calculateActualDailyCost(item, "2026-01-01").toFixed(2)), 2.74);
 });
 
-test("an active item with a finite shelf life does not show actual daily cost before it is finished", () => {
-  const item = createItem({ shelfLifeDays: 30 });
-
-  assert.equal(calculateActualDailyCost(item, "2026-07-22"), undefined);
+test("items without a purchase price have no actual daily cost", () => {
+  assert.equal(calculateActualDailyCost(createItem({ totalPrice: undefined }), "2026-07-22"), null);
 });
 
-test("an unlimited item purchased today counts as one day", () => {
+test("items purchased today have no actual daily cost", () => {
   const item = createItem({ purchaseDate: "2026-07-22" });
 
-  assert.equal(calculateActualDailyCost(item, "2026-07-22"), 100);
+  assert.equal(calculateActualDailyCost(item, "2026-07-22"), null);
 });
 
-test("a finished item still uses its finish date", () => {
-  const item = createItem({ status: "finished", finishDate: "2026-07-17" });
-
-  assert.equal(calculateActualDailyCost(item, "2026-07-22"), 20);
-});
-
-test("items without a positive total price have no actual daily cost", () => {
-  assert.equal(calculateActualDailyCost(createItem({ totalPrice: undefined }), "2026-07-22"), undefined);
-  assert.equal(calculateActualDailyCost(createItem({ totalPrice: 0 }), "2026-07-22"), undefined);
-});
-
-test("discarded unlimited items do not keep accumulating cost after disposal", () => {
-  const item = createItem({ status: "discarded", discardDate: "2026-07-17" });
-
-  assert.equal(calculateActualDailyCost(item, "2026-07-22"), undefined);
+test("future or missing purchase dates have no actual daily cost", () => {
+  assert.equal(calculateActualDailyCost(createItem({ purchaseDate: "2026-07-23" }), "2026-07-22"), null);
+  assert.equal(calculateActualDailyCost(createItem({ purchaseDate: undefined }), "2026-07-22"), null);
 });

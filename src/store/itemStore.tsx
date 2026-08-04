@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,6 +16,9 @@ import { locationRepository } from "../repositories/locationRepository";
 import { shoppingRepository } from "../repositories/shoppingRepository";
 import { usageLogRepository } from "../repositories/usageLogRepository";
 import { capacitorWebDavTransport } from "../services/capacitorWebDavTransport";
+import { calculateActualDailyCost } from "../services/dailyCostCalculator";
+import { refreshDailyCostsIfNeeded } from "../services/dailyCostRefresh";
+import { dailyCostRefreshStorage } from "../services/dailyCostRefreshStorage";
 import {
   getLocalDataUpdatedAt,
   loadSyncMetadata,
@@ -40,6 +44,8 @@ import type { UsageActionType, UsageLog } from "../types/usageLog";
 import { toDateInputValue } from "../utils/dateUtils";
 import { normalizeItemImages } from "../utils/itemImages";
 import { enrichItem } from "../utils/itemCalculations";
+import { reminderService } from "../services/reminderService";
+import { createInventoryBackup, type InventoryBackupReason } from "../services/inventoryBackupService";
 
 type ShoppingDraft = Omit<ShoppingItem, "id" | "isPurchased" | "createdAt" | "updatedAt"> & {
   isPurchased?: boolean;
@@ -62,6 +68,14 @@ type InventoryStore = {
   shoppingItems: ShoppingItem[];
   getCategoryName: (id?: string) => string;
   getLocationName: (id?: string) => string;
+  createCategory: (name: string) => Promise<string>;
+  updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
+  archiveCategory: (id: string) => Promise<void>;
+  moveCategory: (id: string, direction: -1 | 1) => Promise<void>;
+  createLocation: (name: string) => Promise<string>;
+  updateLocation: (id: string, patch: Partial<Location>) => Promise<void>;
+  archiveLocation: (id: string) => Promise<void>;
+  moveLocation: (id: string, direction: -1 | 1) => Promise<void>;
   createItem: (draft: ItemDraft) => Promise<string>;
   updateItem: (id: string, patch: Partial<Item>) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
@@ -70,10 +84,13 @@ type InventoryStore = {
   discardItem: (id: string, note?: string) => Promise<void>;
   markOpened: (id: string, openDate?: string) => Promise<void>;
   restockItem: (id: string, quantity: number, note?: string) => Promise<void>;
+  snoozeExpiryReminder: (id: string, days: number) => Promise<void>;
   addShoppingItem: (draft: ShoppingDraft) => Promise<string>;
   addItemToShoppingList: (itemId: string) => Promise<void>;
   toggleShoppingPurchased: (id: string) => Promise<void>;
+  completeShoppingConversion: (shoppingItemId: string, itemId: string) => Promise<void>;
   deleteShoppingItem: (id: string) => Promise<void>;
+  restoreInventoryData: (data: InventorySyncData, reason: InventoryBackupReason) => Promise<void>;
   webDavSyncState: WebDavSyncState;
   testWebDavConnection: (config: WebDavConfig) => Promise<void>;
   synchronizeWebDav: (config: WebDavConfig, mode?: WebDavSyncMode) => Promise<WebDavSyncResult>;
@@ -88,6 +105,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [locations, setLocations] = useState<Location[]>(defaultLocations);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const costRefreshInFlight = useRef<Promise<boolean> | null>(null);
   const [webDavSyncState, setWebDavSyncState] = useState<WebDavSyncState>(() => ({
     isSyncing: false,
     lastSyncedAt: loadSyncMetadata().lastSyncedAt,
@@ -108,9 +126,22 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       if (cancelled) return;
 
-      const nextCategories = storedCategories.length ? storedCategories : defaultCategories;
-      const nextLocations = storedLocations.length ? storedLocations : defaultLocations;
-      const nextItems = storedItems.map((item) => enrichItem(normalizeItemImages(item)));
+      const nextCategories = storedCategories.length
+        ? storedCategories.map((category) => ({ ...defaultCategories.find((entry) => entry.id === category.id), ...category }))
+        : defaultCategories;
+      const nextLocations = storedLocations.length
+        ? storedLocations.map((location) => ({ ...defaultLocations.find((entry) => entry.id === location.id), ...location }))
+        : defaultLocations;
+      const normalizedItems = storedItems.map((item) => enrichItem(normalizeItemImages(item)));
+      const shouldPersistNormalizedItems = needsNormalizedItemsWrite(storedItems, normalizedItems);
+      const costRefreshResult = await refreshDailyCostsIfNeeded({
+        items: normalizedItems,
+        repository: itemRepository,
+        storage: dailyCostRefreshStorage,
+      }).catch(() => ({ refreshed: false as const, items: normalizedItems }));
+
+      if (cancelled) return;
+      const nextItems = costRefreshResult.items;
 
       setCategories(nextCategories);
       setLocations(nextLocations);
@@ -118,10 +149,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       setLogs(storedLogs);
       setShoppingItems(storedShopping);
       setIsLoaded(true);
+      void reminderService.reconcile(nextItems).catch(() => undefined);
 
       if (!storedCategories.length) await categoryRepository.replaceAll(defaultCategories);
       if (!storedLocations.length) await locationRepository.replaceAll(defaultLocations);
-      if (storedItems.length) await itemRepository.replaceAll(nextItems);
+      if (storedItems.length && !costRefreshResult.refreshed && shouldPersistNormalizedItems) {
+        await itemRepository.replaceAll(nextItems);
+      }
     }
 
     load();
@@ -135,7 +169,49 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setItems(enrichedItems);
     await itemRepository.replaceAll(enrichedItems);
     markLocalDataChanged();
+    void reminderService.reconcile(enrichedItems).catch(() => undefined);
   }, []);
+
+  const refreshActualDailyCosts = useCallback(async () => {
+    if (costRefreshInFlight.current) return costRefreshInFlight.current;
+
+    const refreshTask = (async () => {
+      const result = await refreshDailyCostsIfNeeded({
+        items,
+        repository: itemRepository,
+        storage: dailyCostRefreshStorage,
+      });
+      if (result.refreshed) setItems(result.items);
+      return result.refreshed;
+    })();
+
+    costRefreshInFlight.current = refreshTask;
+    try {
+      return await refreshTask;
+    } finally {
+      if (costRefreshInFlight.current === refreshTask) {
+        costRefreshInFlight.current = null;
+      }
+    }
+  }, [items]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void refreshActualDailyCosts().catch(() => undefined);
+    };
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("pageshow", refreshWhenVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("pageshow", refreshWhenVisible);
+    };
+  }, [isLoaded, refreshActualDailyCosts]);
 
   const commitLogs = useCallback(async (nextLogs: UsageLog[]) => {
     setLogs(nextLogs);
@@ -146,6 +222,18 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const commitShoppingItems = useCallback(async (nextShoppingItems: ShoppingItem[]) => {
     setShoppingItems(nextShoppingItems);
     await shoppingRepository.replaceAll(nextShoppingItems);
+    markLocalDataChanged();
+  }, []);
+
+  const commitCategories = useCallback(async (nextCategories: Category[]) => {
+    setCategories(nextCategories);
+    await categoryRepository.replaceAll(nextCategories);
+    markLocalDataChanged();
+  }, []);
+
+  const commitLocations = useCallback(async (nextLocations: Location[]) => {
+    setLocations(nextLocations);
+    await locationRepository.replaceAll(nextLocations);
     markLocalDataChanged();
   }, []);
 
@@ -181,17 +269,113 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     [locations],
   );
 
+  const createCategory = useCallback(
+    async (name: string) => {
+      const normalizedName = name.trim();
+      if (!normalizedName) throw new Error("分类名称不能为空。");
+      const duplicate = categories.find((category) => category.name === normalizedName && !category.isArchived);
+      if (duplicate) return duplicate.id;
+      const id = createId();
+      await commitCategories([
+        ...categories,
+        { id, name: normalizedName, sortOrder: categories.length },
+      ]);
+      return id;
+    },
+    [categories, commitCategories],
+  );
+
+  const updateCategory = useCallback(
+    async (id: string, patch: Partial<Category>) => {
+      await commitCategories(categories.map((category) => (category.id === id ? { ...category, ...patch } : category)));
+    },
+    [categories, commitCategories],
+  );
+
+  const archiveCategory = useCallback(
+    async (id: string) => {
+      if (id === "other") throw new Error("“其他”分类不能归档。");
+      await updateCategory(id, { isArchived: true });
+    },
+    [updateCategory],
+  );
+
+  const moveCategory = useCallback(
+    async (id: string, direction: -1 | 1) => {
+      const ordered = [...categories].filter((category) => !category.isArchived).sort(compareSortOrder);
+      const index = ordered.findIndex((category) => category.id === id);
+      const target = ordered[index + direction];
+      if (index < 0 || !target) return;
+      const nextOrder = new Map(ordered.map((category, order) => [category.id, order]));
+      nextOrder.set(id, index + direction);
+      nextOrder.set(target.id, index);
+      await commitCategories(categories.map((category) => ({ ...category, sortOrder: nextOrder.get(category.id) ?? category.sortOrder })));
+    },
+    [categories, commitCategories],
+  );
+
+  const createLocation = useCallback(
+    async (name: string) => {
+      const normalizedName = name.trim();
+      if (!normalizedName) throw new Error("位置名称不能为空。");
+      const duplicate = locations.find((location) => location.name === normalizedName && !location.isArchived);
+      if (duplicate) return duplicate.id;
+      const id = createId();
+      await commitLocations([
+        ...locations,
+        { id, name: normalizedName, sortOrder: locations.length },
+      ]);
+      return id;
+    },
+    [commitLocations, locations],
+  );
+
+  const updateLocation = useCallback(
+    async (id: string, patch: Partial<Location>) => {
+      await commitLocations(locations.map((location) => (location.id === id ? { ...location, ...patch } : location)));
+    },
+    [commitLocations, locations],
+  );
+
+  const archiveLocation = useCallback(
+    async (id: string) => {
+      if (id === "other") throw new Error("“其他”位置不能归档。");
+      await updateLocation(id, { isArchived: true });
+    },
+    [updateLocation],
+  );
+
+  const moveLocation = useCallback(
+    async (id: string, direction: -1 | 1) => {
+      const ordered = [...locations].filter((location) => !location.isArchived).sort(compareSortOrder);
+      const index = ordered.findIndex((location) => location.id === id);
+      const target = ordered[index + direction];
+      if (index < 0 || !target) return;
+      const nextOrder = new Map(ordered.map((location, order) => [location.id, order]));
+      nextOrder.set(id, index + direction);
+      nextOrder.set(target.id, index);
+      await commitLocations(locations.map((location) => ({ ...location, sortOrder: nextOrder.get(location.id) ?? location.sortOrder })));
+    },
+    [commitLocations, locations],
+  );
+
   const createItem = useCallback(
     async (draft: ItemDraft) => {
       const now = new Date().toISOString();
-      const item: Item = enrichItem({
+      const enrichedItem: Item = enrichItem({
         ...draft,
+        actualDailyCost: calculateActualDailyCost(draft),
         id: createId(),
         status: draft.status ?? "normal",
         initialQuantity: draft.initialQuantity || draft.quantity,
         createdAt: now,
         updatedAt: now,
       });
+      const item: Item = {
+        ...enrichedItem,
+        expiryReminderEnabled: draft.expiryReminderEnabled ?? Boolean(enrichedItem.finalExpireDate),
+        expiryReminderDays: draft.expiryReminderDays ?? 7,
+      };
 
       await commitItems([item, ...items]);
       const purchaseLog: UsageLog = {
@@ -212,9 +396,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const updateItem = useCallback(
     async (id: string, patch: Partial<Item>) => {
       const now = new Date().toISOString();
-      const nextItems = items.map((item) =>
-        item.id === id ? enrichItem({ ...item, ...patch, updatedAt: now }) : item,
-      );
+      const nextItems = items.map((item) => {
+        if (item.id !== id) return item;
+        const updatedItem = { ...item, ...patch, updatedAt: now };
+        return enrichItem({
+          ...updatedItem,
+          actualDailyCost: calculateActualDailyCost(updatedItem),
+        });
+      });
       await commitItems(nextItems);
       await createLog(id, "edit", undefined, nextItems.find((item) => item.id === id)?.quantity);
     },
@@ -334,6 +523,23 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     [commitItems, createLog, items],
   );
 
+  const snoozeExpiryReminder = useCallback(
+    async (id: string, days: number) => {
+      if (![1, 3, 7].includes(days)) throw new Error("延后天数无效。");
+      const snoozedUntil = new Date();
+      snoozedUntil.setDate(snoozedUntil.getDate() + days);
+      snoozedUntil.setHours(9, 0, 0, 0);
+      const nextItems = items.map((item) =>
+        item.id === id
+          ? { ...item, expiryReminderEnabled: true, expiryReminderSnoozedUntil: snoozedUntil.toISOString(), updatedAt: new Date().toISOString() }
+          : item,
+      );
+      await commitItems(nextItems);
+      await createLog(id, "edit", undefined, nextItems.find((item) => item.id === id)?.quantity, `提醒延后 ${days} 天`);
+    },
+    [commitItems, createLog, items],
+  );
+
   const addShoppingItem = useCallback(
     async (draft: ShoppingDraft) => {
       const now = new Date().toISOString();
@@ -361,6 +567,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         unit: item.unit,
         estimatedPrice: item.totalPrice,
         note: item.locationId ? `原位置：${getLocationName(item.locationId)}` : undefined,
+        sourceItemId: item.id,
       });
     },
     [addShoppingItem, getLocationName, items],
@@ -369,11 +576,27 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const toggleShoppingPurchased = useCallback(
     async (id: string) => {
       const nextShoppingItems = shoppingItems.map((item) =>
-        item.id === id
-          ? { ...item, isPurchased: !item.isPurchased, updatedAt: new Date().toISOString() }
-          : item,
+        item.id === id ? (() => {
+          const isPurchased = !item.isPurchased;
+          const updatedAt = new Date().toISOString();
+          return { ...item, isPurchased, purchasedAt: isPurchased ? updatedAt : undefined, updatedAt };
+        })() : item,
       );
       await commitShoppingItems(nextShoppingItems);
+    },
+    [commitShoppingItems, shoppingItems],
+  );
+
+  const completeShoppingConversion = useCallback(
+    async (shoppingItemId: string, itemId: string) => {
+      const now = new Date().toISOString();
+      await commitShoppingItems(
+        shoppingItems.map((item) =>
+          item.id === shoppingItemId
+            ? { ...item, isPurchased: true, purchasedAt: now, convertedItemId: itemId, updatedAt: now }
+            : item,
+        ),
+      );
     },
     [commitShoppingItems, shoppingItems],
   );
@@ -404,7 +627,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setCategories(nextCategories);
     setLocations(nextLocations);
     setShoppingItems(data.shoppingItems);
+    markLocalDataChanged();
+    void reminderService.reconcile(nextItems).catch(() => undefined);
   }, []);
+
+  const restoreInventoryData = useCallback(
+    async (data: InventorySyncData, reason: InventoryBackupReason) => {
+      await createInventoryBackup({ items, logs, categories, locations, shoppingItems }, reason);
+      await replaceInventoryData(data);
+    },
+    [categories, items, locations, logs, replaceInventoryData, shoppingItems],
+  );
 
   const testWebDavConnection = useCallback(
     async (config: WebDavConfig) => {
@@ -468,7 +701,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         });
 
         if (result.action === "downloaded") {
-          await replaceInventoryData(result.document.data);
+          await restoreInventoryData(result.document.data, "webdav-restore");
         }
 
         saveSyncMetadata({
@@ -501,7 +734,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       items,
       locations,
       logs,
-      replaceInventoryData,
+      restoreInventoryData,
       shoppingItems,
       webDavSyncState.isSyncing,
     ],
@@ -517,6 +750,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       shoppingItems,
       getCategoryName,
       getLocationName,
+      createCategory,
+      updateCategory,
+      archiveCategory,
+      moveCategory,
+      createLocation,
+      updateLocation,
+      archiveLocation,
+      moveLocation,
       createItem,
       updateItem,
       deleteItem,
@@ -525,10 +766,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       discardItem,
       markOpened,
       restockItem,
+      snoozeExpiryReminder,
       addShoppingItem,
       addItemToShoppingList,
       toggleShoppingPurchased,
+      completeShoppingConversion,
       deleteShoppingItem,
+      restoreInventoryData,
       webDavSyncState,
       testWebDavConnection,
       synchronizeWebDav,
@@ -542,6 +786,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       shoppingItems,
       getCategoryName,
       getLocationName,
+      createCategory,
+      updateCategory,
+      archiveCategory,
+      moveCategory,
+      createLocation,
+      updateLocation,
+      archiveLocation,
+      moveLocation,
       createItem,
       updateItem,
       deleteItem,
@@ -550,10 +802,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       discardItem,
       markOpened,
       restockItem,
+      snoozeExpiryReminder,
       addShoppingItem,
       addItemToShoppingList,
       toggleShoppingPurchased,
+      completeShoppingConversion,
       deleteShoppingItem,
+      restoreInventoryData,
       webDavSyncState,
       testWebDavConnection,
       synchronizeWebDav,
@@ -573,6 +828,29 @@ export function useInventoryStore(): InventoryStore {
 
 function createId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function compareSortOrder(left: { name: string; sortOrder?: number }, right: { name: string; sortOrder?: number }): number {
+  return (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name);
+}
+
+function needsNormalizedItemsWrite(storedItems: Item[], normalizedItems: Item[]): boolean {
+  return storedItems.some((storedItem, index) => {
+    const normalizedItem = normalizedItems[index];
+    if (!normalizedItem) return true;
+    if (
+      storedItem.status !== normalizedItem.status ||
+      storedItem.finalExpireDate !== normalizedItem.finalExpireDate ||
+      storedItem.unitPrice !== normalizedItem.unitPrice ||
+      storedItem.imageUrl !== undefined
+    ) {
+      return true;
+    }
+
+    if (!Array.isArray(storedItem.imageUrls)) return true;
+    if (storedItem.imageUrls.length !== normalizedItem.imageUrls?.length) return true;
+    return storedItem.imageUrls.some((imageUrl, imageIndex) => imageUrl !== normalizedItem.imageUrls?.[imageIndex]);
+  });
 }
 
 const syncProgressMessage: Record<WebDavSyncMode, string> = {

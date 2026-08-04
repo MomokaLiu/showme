@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { ImageLightbox } from "../../components/ImageLightbox";
+import { PrivacyGate } from "../../components/PrivacyGate";
 import { StatusBadge } from "../../components/StatusBadge";
 import { useInventoryStore } from "../../store/itemStore";
 import {
-  calculateActualDailyCost,
   calculateCurrentValue,
   calculateShelfLifeDailyCost,
   calculateUnitPrice,
@@ -14,6 +14,7 @@ import {
 import { getItemImageUrls } from "../../utils/itemImages";
 import { actionText, formatCurrency, formatNumber, formatRemainingDays } from "../../utils/formatters";
 import { navigate } from "../router";
+import { isPrivateSessionUnlocked } from "../../services/privacyService";
 
 export default function ItemDetailPage({ itemId }: { itemId: string }) {
   const {
@@ -33,6 +34,7 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
   const [restockQuantity, setRestockQuantity] = useState(1);
   const [note, setNote] = useState("");
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const item = items.find((candidate) => candidate.id === itemId);
   const imageUrls = item ? getItemImageUrls(item) : [];
 
@@ -45,17 +47,24 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
     return <EmptyState title="物品不存在" action={<button onClick={() => navigate("/items")}>返回库存</button>} />;
   }
 
+  if (item.isPrivate && !isPrivateSessionUnlocked()) {
+    return (
+      <PrivacyGate>
+        <ItemDetailPage itemId={itemId} />
+      </PrivacyGate>
+    );
+  }
+
   const remainingDays = getRemainingDays(item.finalExpireDate);
   const unitPrice = calculateUnitPrice(item.totalPrice, item.initialQuantity);
   const shelfLifeDailyCost = calculateShelfLifeDailyCost(item);
-  const actualDailyCost = calculateActualDailyCost(item);
+  const isPrivateItem = Boolean(item.isPrivate);
   const discardLog = itemLogs.find((log) => log.actionType === "discard");
   const wasteAmount = discardLog ? calculateWasteAmount(item, Math.abs(discardLog.quantityChange ?? 0)) : undefined;
 
   async function handleDelete() {
-    if (!window.confirm("确认删除这个物品？")) return;
     await deleteItem(itemId);
-    navigate("/items");
+    navigate(isPrivateItem ? "/items/private" : "/items");
   }
 
   return (
@@ -96,17 +105,21 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
       <section className="detail-grid">
         <DetailRow label="当前数量" value={`${formatNumber(item.quantity)}${item.unit}`} />
         <DetailRow label="存放位置" value={getLocationName(item.locationId)} />
-        <DetailRow label="购入日期" value={item.purchaseDate} />
+        {item.purchaseDate ? <DetailRow label="购入日期" value={item.purchaseDate} /> : null}
         <DetailRow label="过期日期" value={item.finalExpireDate ?? "未设置"} />
         <DetailRow label="剩余有效期" value={formatRemainingDays(remainingDays)} />
         <DetailRow label="总价" value={formatCurrency(item.totalPrice)} />
         <DetailRow label="单价" value={formatCurrency(unitPrice)} />
         <DetailRow label="库存价值" value={formatCurrency(calculateCurrentValue(item))} />
         <DetailRow label="有效期日均成本" value={shelfLifeDailyCost ? `${formatCurrency(shelfLifeDailyCost)}/天` : "-"} />
-        <DetailRow label="实际日均成本" value={actualDailyCost ? `${formatCurrency(actualDailyCost)}/天` : "-"} />
+        {item.actualDailyCost !== null && item.actualDailyCost !== undefined ? (
+          <DetailRow label="实际日用成本" value={`${formatCurrency(item.actualDailyCost)}/天`} />
+        ) : null}
         {wasteAmount !== undefined ? <DetailRow label="浪费金额" value={formatCurrency(wasteAmount)} /> : null}
         {item.brand ? <DetailRow label="品牌" value={item.brand} /> : null}
+        {item.model ? <DetailRow label="型号" value={item.model} /> : null}
         {item.purchaseChannel ? <DetailRow label="购买渠道" value={item.purchaseChannel} /> : null}
+        {item.tags?.length ? <DetailRow label="标签" value={item.tags.join("、")} wide /> : null}
         {item.openDate ? <DetailRow label="开封日期" value={item.openDate} /> : null}
         {item.note ? <DetailRow label="备注" value={item.note} wide /> : null}
       </section>
@@ -167,9 +180,23 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
             编辑物品
           </button>
         </div>
-        <button type="button" className="danger-button" onClick={handleDelete}>
-          删除物品
-        </button>
+        {isDeleteConfirmOpen ? (
+          <div className="delete-confirm" role="alert">
+            <span>删除后无法恢复，同时会移除这件物品的使用记录。</span>
+            <div>
+              <button type="button" className="danger-button" onClick={handleDelete}>
+                确认删除
+              </button>
+              <button type="button" onClick={() => setIsDeleteConfirmOpen(false)}>
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="danger-button" onClick={() => setIsDeleteConfirmOpen(true)}>
+            删除物品
+          </button>
+        )}
       </section>
 
       <section className="section-block">

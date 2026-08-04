@@ -6,6 +6,7 @@ export function useShoppingStore() {
     addShoppingItem,
     addItemToShoppingList,
     toggleShoppingPurchased,
+    completeShoppingConversion,
     deleteShoppingItem,
   } = useInventoryStore();
 
@@ -14,6 +15,7 @@ export function useShoppingStore() {
     addShoppingItem,
     addItemToShoppingList,
     toggleShoppingPurchased,
+    completeShoppingConversion,
     deleteShoppingItem,
   };
 }

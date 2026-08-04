@@ -12,7 +12,7 @@ export function DatePickerField({ label, value, onChange, required }: DatePicker
       <input
         type="date"
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onInput={(event) => onChange(event.currentTarget.value)}
         required={required}
       />
     </label>

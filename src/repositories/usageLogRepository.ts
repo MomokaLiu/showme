@@ -1,4 +1,4 @@
 import type { UsageLog } from "../types/usageLog";
-import { LocalStorageRepository } from "./localStorageRepository";
+import { IndexedDbRepository } from "./indexedDbRepository";
 
-export const usageLogRepository = new LocalStorageRepository<UsageLog>("buwangwu.usageLogs");
+export const usageLogRepository = new IndexedDbRepository<UsageLog>("usageLogs");

@@ -1,21 +1,79 @@
-import { ItemForm, type ItemFormData } from "../../components/ItemForm";
+import { useMemo, useState } from "react";
+import { QuickItemForm, type QuickItemFormData } from "../../components/QuickItemForm";
 import { useInventoryStore } from "../../store/itemStore";
+import type { ShoppingItem } from "../../types/shopping";
 import { navigate } from "../router";
 
-export default function NewItemPage() {
-  const { createItem } = useInventoryStore();
+const CONVERSION_STORAGE_KEY = "buwangwu.shoppingConversion";
 
-  async function handleSubmit(data: ItemFormData) {
+export default function NewItemPage() {
+  const { createItem, completeShoppingConversion } = useInventoryStore();
+  const [createdItemId, setCreatedItemId] = useState<string>();
+  const [formVersion, setFormVersion] = useState(0);
+  const conversion = useMemo(loadShoppingConversion, [formVersion]);
+  const queryName = useMemo(() => {
+    const [, query = ""] = window.location.hash.split("?", 2);
+    return new URLSearchParams(query).get("name") ?? "";
+  }, [formVersion]);
+
+  async function handleSubmit(data: QuickItemFormData) {
+    const quantity = data.quantity ?? conversion?.quantity ?? 1;
     const id = await createItem({
-      ...data,
-      initialQuantity: data.quantity,
+      name: data.name,
+      imageUrls: data.imageUrls,
+      categoryId: data.categoryId ?? "other",
+      locationId: data.locationId,
+      quantity,
+      initialQuantity: quantity,
+      unit: data.unit ?? conversion?.unit ?? "件",
+      brand: data.brand,
+      model: data.model,
+      purchaseChannel: data.purchaseChannel,
+      tags: data.tags,
+      totalPrice: data.totalPrice ?? conversion?.estimatedPrice,
     });
-    navigate(`/items/${id}`);
+    window.sessionStorage.setItem("buwangwu.quickCreatedItemId", id);
+    if (conversion) {
+      await completeShoppingConversion(conversion.id, id);
+      window.sessionStorage.removeItem(CONVERSION_STORAGE_KEY);
+    }
+    setCreatedItemId(id);
+  }
+
+  if (createdItemId) {
+    return (
+      <div className="page-stack quick-create-success">
+        <div className="success-mark" aria-hidden="true">✓</div>
+        <h2>已经记下来了</h2>
+        <p>现在可以返回；价格、图片和其他资料随时再补充。</p>
+        <button className="primary-button" type="button" onClick={() => navigate("/")}>完成并返回首页</button>
+        <button className="secondary-button" type="button" onClick={() => navigate(`/items/edit/${createdItemId}`)}>继续完善资料</button>
+        <button type="button" className="text-button" onClick={() => { setCreatedItemId(undefined); setFormVersion((value) => value + 1); }}>再记一件</button>
+      </div>
+    );
   }
 
   return (
     <div className="page-stack">
-      <ItemForm submitLabel="保存物品" onSubmit={handleSubmit} />
+      <QuickItemForm
+        key={formVersion}
+        initialData={{
+          name: conversion?.name ?? queryName,
+          quantity: conversion?.quantity,
+          unit: conversion?.unit,
+          totalPrice: conversion?.estimatedPrice,
+        }}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
+}
+
+function loadShoppingConversion(): ShoppingItem | undefined {
+  try {
+    const raw = window.sessionStorage.getItem(CONVERSION_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as ShoppingItem : undefined;
+  } catch {
+    return undefined;
+  }
 }

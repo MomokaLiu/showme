@@ -15,11 +15,14 @@ import {
 
 export default function StatsPage() {
   const { items, logs, categories } = useInventoryStore();
-  const activeItems = items.filter((item) => item.status !== "finished" && item.status !== "discarded");
-  const expiringCount = getExpiringItems(items, 7).length;
-  const expiredCount = getExpiredItems(items).length;
-  const monthlyPurchaseAmount = calculateMonthlyPurchaseAmount(items);
-  const monthlyWasteAmount = calculateMonthlyWasteAmount(items, logs);
+  const publicItems = items.filter((item) => !item.isPrivate);
+  const publicItemIds = new Set(publicItems.map((item) => item.id));
+  const publicLogs = logs.filter((log) => publicItemIds.has(log.itemId));
+  const activeItems = publicItems.filter((item) => item.status !== "finished" && item.status !== "discarded");
+  const expiringCount = getExpiringItems(publicItems, 7).length;
+  const expiredCount = getExpiredItems(publicItems).length;
+  const monthlyPurchaseAmount = calculateMonthlyPurchaseAmount(publicItems);
+  const monthlyWasteAmount = calculateMonthlyWasteAmount(publicItems, publicLogs);
   const expiryRisk = activeItems.length ? ((expiringCount + expiredCount) / activeItems.length) * 100 : 0;
   const inventoryHealth = activeItems.length
     ? Math.max(0, 100 - (expiredCount * 30 + expiringCount * 14) / activeItems.length)
@@ -56,12 +59,12 @@ export default function StatsPage() {
       </section>
 
       <section className="stat-grid stat-grid--single">
-        <StatCard label="当前库存总价值" value={formatCurrency(calculateInventoryValue(items))} tone="green" />
-        <StatCard label="本月新增物品" value={calculateMonthlyNewItemCount(items)} tone="blue" />
+        <StatCard label="当前库存总价值" value={formatCurrency(calculateInventoryValue(publicItems))} tone="green" />
+        <StatCard label="本月新增物品" value={calculateMonthlyNewItemCount(publicItems)} tone="blue" />
         <StatCard label="本月购买总金额" value={formatCurrency(monthlyPurchaseAmount)} tone="blue" />
         <StatCard label="本月浪费金额" value={formatCurrency(monthlyWasteAmount)} tone="red" />
-        <StatCard label="已用完物品" value={getFinishedItemCount(items)} tone="gray" />
-        <StatCard label="最容易过期的分类" value={getMostExpiryProneCategory(items, categories)} tone="orange" />
+        <StatCard label="已用完物品" value={getFinishedItemCount(publicItems)} tone="gray" />
+        <StatCard label="最容易过期的分类" value={getMostExpiryProneCategory(publicItems, categories)} tone="orange" />
         <StatCard label="临期物品数量" value={expiringCount} tone="orange" />
         <StatCard label="已过期物品数量" value={expiredCount} tone="red" />
       </section>

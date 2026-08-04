@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardPage from "./app/index";
-import ExpiringPage from "./app/expiring";
 import InventoryPage from "./app/items";
 import ItemDetailPage from "./app/items/[id]";
 import EditItemPage from "./app/items/edit/[id]";
 import NewItemPage from "./app/items/new";
+import PrivateInventoryPage from "./app/items/private";
+import LocationDetailPage from "./app/locations/[id]";
+import LocationsPage from "./app/locations";
+import RankingsPage from "./app/rankings";
 import SettingsPage from "./app/settings";
-import ShoppingPage from "./app/shopping";
 import StatsPage from "./app/stats";
+import TasksPage from "./app/tasks";
 import { navigate, parseRoute, type Route } from "./app/router";
 import { useInventoryStore } from "./store/itemStore";
 
@@ -19,21 +22,37 @@ export function App() {
   return (
     <div className="phone-shell">
       <header className="app-header">
-        <button className="icon-button" type="button" onClick={() => navigate("/")}>
+        <button className="icon-button app-header__brand" type="button" onClick={() => navigate("/")}>
           不忘物
         </button>
         <h1>{route.title}</h1>
-        <button className="icon-button" type="button" onClick={() => navigate("/settings")}>
-          设置
-        </button>
+        {route.name === "settings" ? (
+          <span className="app-header__placeholder" aria-hidden="true" />
+        ) : (
+          <button className="icon-button" type="button" onClick={() => navigate("/settings")}>
+            设置
+          </button>
+        )}
       </header>
       <main className="app-main">{isLoaded ? renderRoute(route) : <div className="loading">正在整理库存...</div>}</main>
-      <nav className="tab-bar" aria-label="主导航">
-        <TabButton active={route.name === "dashboard"} path="/" label="首页" />
-        <TabButton active={route.name === "items" || route.name === "item"} path="/items" label="库存" />
-        <TabButton active={route.name === "expiring"} path="/expiring" label="临期" />
-        <TabButton active={route.name === "shopping"} path="/shopping" label="清单" />
-        <TabButton active={route.name === "stats"} path="/stats" label="统计" />
+      <nav className="tab-bar tab-bar--primary" aria-label="主导航">
+        <TabButton active={route.name === "dashboard"} path="/" label="首页" icon="⌂" />
+        <TabButton
+          active={
+            route.name === "items" ||
+            route.name === "item" ||
+            route.name === "private-items" ||
+            route.name === "rankings" ||
+            route.name === "locations" ||
+            route.name === "location"
+          }
+          path="/items"
+          label="库存"
+          icon="▦"
+        />
+        <TabButton active={route.name === "new" || route.name === "edit"} path="/items/new" label="添加" icon="＋" emphasis />
+        <TabButton active={route.name === "tasks"} path="/tasks" label="待办" icon="✓" />
+        <TabButton active={route.name === "settings" || route.name === "stats"} path="/settings" label="设置" icon="⚙" />
       </nav>
     </div>
   );
@@ -44,17 +63,23 @@ function renderRoute(route: Route) {
     case "dashboard":
       return <DashboardPage />;
     case "items":
-      return <InventoryPage />;
+      return <InventoryPage initialQuery={route.query} initialLocationId={route.locationId} />;
     case "item":
       return <ItemDetailPage itemId={route.id} />;
     case "new":
       return <NewItemPage />;
     case "edit":
       return <EditItemPage itemId={route.id} />;
-    case "expiring":
-      return <ExpiringPage />;
-    case "shopping":
-      return <ShoppingPage />;
+    case "private-items":
+      return <PrivateInventoryPage />;
+    case "rankings":
+      return <RankingsPage />;
+    case "locations":
+      return <LocationsPage />;
+    case "location":
+      return <LocationDetailPage locationId={route.id} />;
+    case "tasks":
+      return <TasksPage initialSection={route.section} />;
     case "stats":
       return <StatsPage />;
     case "settings":
@@ -62,10 +87,26 @@ function renderRoute(route: Route) {
   }
 }
 
-function TabButton({ active, path, label }: { active: boolean; path: string; label: string }) {
+function TabButton({
+  active,
+  path,
+  label,
+  icon,
+  emphasis = false,
+}: {
+  active: boolean;
+  path: string;
+  label: string;
+  icon: string;
+  emphasis?: boolean;
+}) {
+  const classes = ["tab-button", active ? "tab-button--active" : "", emphasis ? "tab-button--emphasis" : ""]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <button className={active ? "tab-button tab-button--active" : "tab-button"} type="button" onClick={() => navigate(path)}>
-      {label}
+    <button className={classes} type="button" onClick={() => navigate(path)} aria-current={active ? "page" : undefined}>
+      <b aria-hidden="true">{icon}</b>
+      <span>{label}</span>
     </button>
   );
 }

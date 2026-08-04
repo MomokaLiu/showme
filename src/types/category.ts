@@ -4,4 +4,6 @@ export type Category = {
   icon?: string;
   defaultShelfLifeDays?: number;
   defaultReminderDays?: number;
+  isArchived?: boolean;
+  sortOrder?: number;
 };

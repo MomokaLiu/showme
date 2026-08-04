@@ -1,5 +1,5 @@
 import type { Item, ItemStatus } from "../types/item";
-import { addDays, daysBetween, diffInCalendarDays, minDateString, toDateInputValue } from "./dateUtils";
+import { addDays, daysBetween, diffInCalendarDays, minDateString } from "./dateUtils";
 
 export const DEFAULT_REMINDER_DAYS = 7;
 
@@ -63,24 +63,6 @@ export function calculateShelfLifeDailyCost(item: Item): number | undefined {
     (item.shelfLifeDays && item.shelfLifeDays > 0 ? item.shelfLifeDays : undefined);
   if (!effectiveDays) return undefined;
   return item.totalPrice / effectiveDays;
-}
-
-export function calculateActualDailyCost(item: Item, asOfDate = toDateInputValue()): number | undefined {
-  if (!item.totalPrice || item.totalPrice <= 0) return undefined;
-
-  let actualEndDate: string | undefined;
-  if (item.status === "finished") {
-    actualEndDate = item.finishDate;
-  } else {
-    if (item.status === "discarded" || item.status === "transferred") return undefined;
-    const finalExpireDate = calculateFinalExpireDate(item) || item.finalExpireDate;
-    if (finalExpireDate) return undefined;
-    actualEndDate = asOfDate;
-  }
-
-  const actualDays = daysBetween(item.purchaseDate, actualEndDate);
-  if (!actualDays) return undefined;
-  return item.totalPrice / actualDays;
 }
 
 export function calculateWasteAmount(item: Item, discardedQuantity: number): number {

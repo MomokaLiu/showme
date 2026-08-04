@@ -6,6 +6,9 @@ export type ShoppingItem = {
   estimatedPrice?: number;
   note?: string;
   isPurchased: boolean;
+  sourceItemId?: string;
+  purchasedAt?: string;
+  convertedItemId?: string;
   createdAt: string;
   updatedAt: string;
 };

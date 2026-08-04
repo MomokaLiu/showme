@@ -1,7 +1,19 @@
 import { useState } from "react";
+import { PrivacySettingsCard } from "../../components/PrivacySettingsCard";
+import {
+  testAiRecognitionConnection,
+} from "../../services/imageRecognitionService";
+import {
+  loadAiRecognitionConfig,
+  saveAiRecognitionConfig,
+  type AiRecognitionConfig,
+} from "../../services/aiRecognitionStorage";
 import { loadWebDavConfig, saveWebDavConfig } from "../../services/syncStorage";
 import { useInventoryStore } from "../../store/itemStore";
 import type { WebDavConfig, WebDavSyncMode } from "../../types/sync";
+import { DataSafetyCard } from "../../components/DataSafetyCard";
+import { navigate } from "../router";
+import { CategorySettingsCard } from "../../components/CategorySettingsCard";
 
 export default function SettingsPage() {
   const {
@@ -14,6 +26,13 @@ export default function SettingsPage() {
     synchronizeWebDav,
   } = useInventoryStore();
   const [webDavConfig, setWebDavConfig] = useState<WebDavConfig>(() => loadWebDavConfig());
+  const [aiConfig, setAiConfig] = useState<AiRecognitionConfig>(() => loadAiRecognitionConfig());
+  const [aiConfigSaved, setAiConfigSaved] = useState(false);
+  const [aiTestState, setAiTestState] = useState<{
+    isTesting: boolean;
+    message?: string;
+    isError?: boolean;
+  }>({ isTesting: false });
   const isJianguoyun = isJianguoyunUrl(webDavConfig.url);
   const host = typeof window === "undefined" ? "" : window.location.hostname;
   const androidTestUrl =
@@ -23,6 +42,40 @@ export default function SettingsPage() {
 
   function updateWebDavConfig<Key extends keyof WebDavConfig>(key: Key, value: WebDavConfig[Key]) {
     setWebDavConfig((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateAiConfig<Key extends keyof AiRecognitionConfig>(key: Key, value: AiRecognitionConfig[Key]) {
+    setAiConfig((current) => ({ ...current, [key]: value }));
+    setAiConfigSaved(false);
+    setAiTestState({ isTesting: false });
+  }
+
+  async function handleTestAi() {
+    saveAiRecognitionConfig(aiConfig);
+    setAiConfigSaved(true);
+    setAiTestState({ isTesting: true });
+    try {
+      const result = await testAiRecognitionConnection(aiConfig);
+      if (result.success) {
+        setAiTestState({
+          isTesting: false,
+          message: `AI 识别测试成功！模型 (${result.model}) 响应正常。`,
+          isError: false,
+        });
+      } else {
+        setAiTestState({
+          isTesting: false,
+          message: `测试失败：${result.error}`,
+          isError: true,
+        });
+      }
+    } catch (cause) {
+      setAiTestState({
+        isTesting: false,
+        message: `测试出错：${cause instanceof Error ? cause.message : String(cause)}`,
+        isError: true,
+      });
+    }
   }
 
   function persistConfig() {
@@ -61,8 +114,116 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack settings-page">
+      <section className="settings-hub-grid">
+        <button type="button" onClick={() => navigate("/locations")}><strong>存放位置</strong><span>新增、重命名和归档</span></button>
+        <button type="button" onClick={() => navigate("/insights")}><strong>数据洞察</strong><span>价值、成本和浪费</span></button>
+        <button type="button" onClick={() => navigate("/rankings")}><strong>库存榜单</strong><span>闲置与使用价值</span></button>
+        <button type="button" onClick={() => navigate("/items/private")}><strong>私密库存</strong><span>验证后查看</span></button>
+      </section>
+
       <section className="section-block">
+        <div className="section-title"><h2>数据安全</h2></div>
+        <DataSafetyCard />
+      </section>
+
+      <section className="section-block">
+        <div className="section-title"><h2>分类管理</h2></div>
+        <CategorySettingsCard />
+      </section>
+
+      <details className="settings-details">
+        <summary><strong>AI 图片识别</strong><span>模型与密钥配置</span></summary>
+      <section className="section-block settings-details__body">
+        <div className="section-title">
+          <h2>AI 图片识别</h2>
+        </div>
+        <div className="sync-card">
+          <p className="settings-intro">
+            配置兼容 Chat Completions 的视觉模型接口后，可在“添加物品”中拍照生成录入建议。AI 结果只会填入草稿。
+          </p>
+          <label className="field">
+            <span>接口地址</span>
+            <input
+              type="url"
+              value={aiConfig.endpoint}
+              onChange={(event) => updateAiConfig("endpoint", event.target.value)}
+              placeholder="https://generativelanguage.googleapis.com/v1beta/openai"
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          </label>
+          <div className="field-grid">
+            <label className="field">
+              <span>模型</span>
+              <input
+                value={aiConfig.model}
+                onChange={(event) => updateAiConfig("model", event.target.value)}
+                placeholder="例如 gemini-3.6-flash 或 gpt-4o-mini"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+            </label>
+            <label className="field">
+              <span>API 密钥</span>
+              <input
+                type="password"
+                value={aiConfig.apiKey}
+                onChange={(event) => updateAiConfig("apiKey", event.target.value)}
+                placeholder="仅保存在当前设备"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+            </label>
+          </div>
+          <div className="sync-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                saveAiRecognitionConfig(aiConfig);
+                setAiConfigSaved(true);
+              }}
+            >
+              保存 AI 配置
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={aiTestState.isTesting}
+              onClick={handleTestAi}
+            >
+              {aiTestState.isTesting ? "测试中..." : "测试 AI 识别"}
+            </button>
+          </div>
+          {aiConfigSaved ? <p className="form-message" role="status">AI 识别配置已保存。</p> : null}
+          {aiTestState.message ? (
+            <p
+              className={aiTestState.isError ? "sync-status sync-status--error" : "form-message"}
+              role="status"
+            >
+              {aiTestState.message}
+            </p>
+          ) : null}
+          <small>密钥只保存在当前设备，不进入 WebDAV 同步。支持 Google Gemini OpenAI 兼容接口及各类 Chat Completions 代理。</small>
+        </div>
+      </section>
+      </details>
+
+      <details className="settings-details">
+        <summary><strong>私密库存保护</strong><span>密码、手势和设备验证</span></summary>
+      <section className="section-block settings-details__body">
+        <div className="section-title">
+          <h2>私密库存保护</h2>
+        </div>
+        <PrivacySettingsCard />
+        <small className="privacy-disclaimer">私密库存提供本机界面访问控制，不等同于端到端加密；同步到 WebDAV 的备份文件也未加密。</small>
+      </section>
+      </details>
+
+      <details className="settings-details">
+        <summary><strong>WebDAV 数据同步</strong><span>高级备份与多设备恢复</span></summary>
+      <section className="section-block settings-details__body">
         <div className="section-title">
           <h2>WebDAV 数据同步</h2>
         </div>
@@ -175,8 +336,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+      </details>
 
-      <section className="section-block">
+      {import.meta.env.DEV ? <section className="section-block">
         <div className="section-title">
           <h2>安卓真机测试</h2>
         </div>
@@ -185,7 +347,7 @@ export default function SettingsPage() {
           <span>电脑运行 npm run dev:android 后，手机和电脑连同一 Wi-Fi，再用手机 Chrome 打开电脑局域网地址。</span>
           <span>可运行 npm run android:url 查看可用地址。</span>
         </div>
-      </section>
+      </section> : null}
 
       <section className="section-block">
         <div className="section-title">
@@ -211,27 +373,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="section-block">
-        <div className="section-title">
-          <h2>默认分类</h2>
-        </div>
-        <div className="tag-wrap">
-          {categories.map((category) => (
-            <span key={category.id}>{category.name}</span>
-          ))}
-        </div>
-      </section>
-
-      <section className="section-block">
-        <div className="section-title">
-          <h2>默认位置</h2>
-        </div>
-        <div className="tag-wrap">
-          {locations.map((location) => (
-            <span key={location.id}>{location.name}</span>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

@@ -1,4 +1,4 @@
 import type { Location } from "../types/location";
-import { LocalStorageRepository } from "./localStorageRepository";
+import { IndexedDbRepository } from "./indexedDbRepository";
 
-export const locationRepository = new LocalStorageRepository<Location>("buwangwu.locations");
+export const locationRepository = new IndexedDbRepository<Location>("locations");

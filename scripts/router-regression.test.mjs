@@ -28,13 +28,32 @@ test("all static routes resolve to their dedicated pages", () => {
     ["/", "dashboard"],
     ["/items", "items"],
     ["/items/new", "new"],
-    ["/expiring", "expiring"],
-    ["/shopping", "shopping"],
+    ["/items/private", "private-items"],
+    ["/rankings", "rankings"],
+    ["/locations", "locations"],
+    ["/tasks", "tasks"],
+    ["/expiring", "tasks"],
+    ["/shopping", "tasks"],
     ["/stats", "stats"],
+    ["/insights", "stats"],
     ["/settings", "settings"],
   ]);
 
   for (const [path, expectedName] of expectedRoutes) {
     assert.equal(parseRoute(path).name, expectedName, `${path} resolved to the wrong page`);
   }
+});
+
+test("inventory search and location routes preserve their parameters", () => {
+  assert.deepEqual(parseRoute("/items?q=AirPods&location=bedroom"), {
+    name: "items",
+    title: "库存",
+    query: "AirPods",
+    locationId: "bedroom",
+  });
+  assert.deepEqual(parseRoute("/locations/storage_box"), {
+    name: "location",
+    title: "位置详情",
+    id: "storage_box",
+  });
 });

@@ -2,8 +2,10 @@ import { useState, type FormEvent } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { useShoppingStore } from "../../store/shoppingStore";
 import { formatCurrency, formatNumber } from "../../utils/formatters";
+import type { ShoppingItem } from "../../types/shopping";
+import { navigate } from "../router";
 
-export default function ShoppingPage() {
+export default function ShoppingPage({ embedded = false }: { embedded?: boolean }) {
   const { shoppingItems, addShoppingItem, toggleShoppingPurchased, deleteShoppingItem } = useShoppingStore();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState<number | undefined>(1);
@@ -30,8 +32,13 @@ export default function ShoppingPage() {
   const activeItems = shoppingItems.filter((item) => !item.isPurchased);
   const purchasedItems = shoppingItems.filter((item) => item.isPurchased);
 
+  function convertToInventory(item: ShoppingItem) {
+    window.sessionStorage.setItem("buwangwu.shoppingConversion", JSON.stringify(item));
+    navigate("/items/new");
+  }
+
   return (
-    <div className="page-stack">
+    <div className={embedded ? "embedded-page-stack" : "page-stack"}>
       <form className="shopping-form" onSubmit={handleSubmit}>
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="要买什么" />
         <div className="field-grid">
@@ -67,6 +74,7 @@ export default function ShoppingPage() {
         emptyTitle="购物清单是空的"
         onToggle={toggleShoppingPurchased}
         onDelete={deleteShoppingItem}
+        onConvert={convertToInventory}
       />
       <ShoppingSection
         title="已购买"
@@ -85,9 +93,10 @@ type ShoppingSectionProps = {
   items: ReturnType<typeof useShoppingStore>["shoppingItems"];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onConvert?: (item: ShoppingItem) => void;
 };
 
-function ShoppingSection({ title, emptyTitle, items, onToggle, onDelete }: ShoppingSectionProps) {
+function ShoppingSection({ title, emptyTitle, items, onToggle, onDelete, onConvert }: ShoppingSectionProps) {
   return (
     <section className="section-block">
       <div className="section-title">
@@ -109,9 +118,12 @@ function ShoppingSection({ title, emptyTitle, items, onToggle, onDelete }: Shopp
                   </small>
                 </span>
               </label>
-              <button type="button" onClick={() => onDelete(item.id)}>
-                删除
-              </button>
+              <div className="shopping-item__actions">
+                {onConvert && !item.isPurchased ? (
+                  <button className="shopping-convert-button" type="button" onClick={() => onConvert(item)}>买到并入库</button>
+                ) : null}
+                <button type="button" onClick={() => onDelete(item.id)}>删除</button>
+              </div>
             </article>
           ))}
         </div>

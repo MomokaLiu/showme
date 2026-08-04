@@ -14,17 +14,23 @@ export type Item = {
   quantity: number;
   initialQuantity: number;
   unit: string;
-  purchaseDate: string;
+  purchaseDate?: string;
   expireDate?: string;
   shelfLifeDays?: number;
   openDate?: string;
   afterOpenDays?: number;
   finalExpireDate?: string;
+  expiryReminderEnabled?: boolean;
+  expiryReminderDays?: number;
+  expiryReminderSnoozedUntil?: string;
   totalPrice?: number;
   unitPrice?: number;
+  actualDailyCost?: number | null;
   locationId?: string;
   brand?: string;
+  model?: string;
   purchaseChannel?: string;
+  isPrivate?: boolean;
   imageUrls?: string[];
   /** @deprecated Kept only so existing single-image inventory can be migrated. */
   imageUrl?: string;
