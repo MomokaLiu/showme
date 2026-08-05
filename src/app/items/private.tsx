@@ -27,7 +27,7 @@ export default function PrivateInventoryPage() {
           <div>
             <span>已解锁</span>
             <h2>私密库存</h2>
-            <p>私密物品不会出现在首页、普通库存和榜单中。</p>
+            <p>私密物品不会出现在“找东西”、普通列表和榜单中。</p>
           </div>
           <button
             type="button"

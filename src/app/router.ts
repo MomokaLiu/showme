@@ -1,8 +1,7 @@
 export type TaskSection = "reminders" | "shopping";
 
 export type Route =
-  | { name: "dashboard"; title: string }
-  | { name: "items"; title: string; query?: string; locationId?: string }
+  | { name: "find"; title: string; query?: string; locationId?: string }
   | { name: "item"; title: string; id: string }
   | { name: "new"; title: string }
   | { name: "edit"; title: string; id: string }
@@ -37,10 +36,10 @@ export function parseRoute(pathWithQuery: string): Route {
   const itemMatch = path.match(/^\/items\/([^/]+)$/);
   if (itemMatch) return { name: "item", title: "物品详情", id: itemMatch[1] };
 
-  if (path === "/items") {
+  if (path === "/" || path === "/items") {
     return {
-      name: "items",
-      title: "库存",
+      name: "find",
+      title: "找东西",
       query: search.get("q") ?? undefined,
       locationId: search.get("location") ?? undefined,
     };
@@ -53,5 +52,5 @@ export function parseRoute(pathWithQuery: string): Route {
   }
   if (path === "/insights" || path === "/stats") return { name: "stats", title: "数据洞察" };
   if (path === "/settings") return { name: "settings", title: "设置" };
-  return { name: "dashboard", title: "首页" };
+  return { name: "find", title: "找东西" };
 }

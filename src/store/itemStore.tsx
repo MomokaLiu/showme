@@ -46,6 +46,9 @@ import { normalizeItemImages } from "../utils/itemImages";
 import { enrichItem } from "../utils/itemCalculations";
 import { reminderService } from "../services/reminderService";
 import { createInventoryBackup, type InventoryBackupReason } from "../services/inventoryBackupService";
+import { recordLocalProductEvent } from "../services/localProductMetrics";
+import { normalizeItemMode } from "../utils/itemMode";
+import { getLocationPath, normalizeLocations } from "../utils/locations";
 
 type ShoppingDraft = Omit<ShoppingItem, "id" | "isPurchased" | "createdAt" | "updatedAt"> & {
   isPurchased?: boolean;
@@ -68,11 +71,12 @@ type InventoryStore = {
   shoppingItems: ShoppingItem[];
   getCategoryName: (id?: string) => string;
   getLocationName: (id?: string) => string;
+  getLocationPath: (id?: string) => string;
   createCategory: (name: string) => Promise<string>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
   archiveCategory: (id: string) => Promise<void>;
   moveCategory: (id: string, direction: -1 | 1) => Promise<void>;
-  createLocation: (name: string) => Promise<string>;
+  createLocation: (name: string, options?: { parentId?: string }) => Promise<string>;
   updateLocation: (id: string, patch: Partial<Location>) => Promise<void>;
   archiveLocation: (id: string) => Promise<void>;
   moveLocation: (id: string, direction: -1 | 1) => Promise<void>;
@@ -129,11 +133,15 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       const nextCategories = storedCategories.length
         ? storedCategories.map((category) => ({ ...defaultCategories.find((entry) => entry.id === category.id), ...category }))
         : defaultCategories;
-      const nextLocations = storedLocations.length
+      const mergedLocations = storedLocations.length
         ? storedLocations.map((location) => ({ ...defaultLocations.find((entry) => entry.id === location.id), ...location }))
         : defaultLocations;
-      const normalizedItems = storedItems.map((item) => enrichItem(normalizeItemImages(item)));
+      const nextLocations = normalizeLocations(mergedLocations);
+      const normalizedItems = storedItems.map((item) =>
+        normalizeItemMode(enrichItem(normalizeItemImages(item)), storedLogs),
+      );
       const shouldPersistNormalizedItems = needsNormalizedItemsWrite(storedItems, normalizedItems);
+      const shouldPersistNormalizedLocations = needsNormalizedLocationsWrite(storedLocations, nextLocations);
       const costRefreshResult = await refreshDailyCostsIfNeeded({
         items: normalizedItems,
         repository: itemRepository,
@@ -153,9 +161,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       if (!storedCategories.length) await categoryRepository.replaceAll(defaultCategories);
       if (!storedLocations.length) await locationRepository.replaceAll(defaultLocations);
+      else if (shouldPersistNormalizedLocations) await locationRepository.replaceAll(nextLocations);
       if (storedItems.length && !costRefreshResult.refreshed && shouldPersistNormalizedItems) {
         await itemRepository.replaceAll(nextItems);
       }
+      recordLocalProductEvent("app_opened");
     }
 
     load();
@@ -265,9 +275,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const getLocationName = useCallback(
-    (id?: string) => locations.find((location) => location.id === id)?.name ?? "未设置",
+    (id?: string) => getLocationPath(locations, id),
     [locations],
   );
+
+  const getLocationPathName = useCallback((id?: string) => getLocationPath(locations, id), [locations]);
 
   const createCategory = useCallback(
     async (name: string) => {
@@ -315,15 +327,31 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const createLocation = useCallback(
-    async (name: string) => {
+    async (name: string, options?: { parentId?: string }) => {
       const normalizedName = name.trim();
       if (!normalizedName) throw new Error("位置名称不能为空。");
-      const duplicate = locations.find((location) => location.name === normalizedName && !location.isArchived);
+      const parentId = options?.parentId || undefined;
+      if (parentId && !locations.some((location) => location.id === parentId && !location.parentId && !location.isArchived)) {
+        throw new Error("上级区域不存在或不可用。");
+      }
+      const duplicate = locations.find(
+        (location) =>
+          location.name === normalizedName &&
+          location.parentId === parentId &&
+          !location.isArchived,
+      );
       if (duplicate) return duplicate.id;
       const id = createId();
+      const siblings = locations.filter((location) => location.parentId === parentId);
       await commitLocations([
         ...locations,
-        { id, name: normalizedName, sortOrder: locations.length },
+        {
+          id,
+          name: normalizedName,
+          kind: parentId ? "container" : "area",
+          parentId,
+          sortOrder: siblings.length,
+        },
       ]);
       return id;
     },
@@ -340,14 +368,21 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const archiveLocation = useCallback(
     async (id: string) => {
       if (id === "other") throw new Error("“其他”位置不能归档。");
-      await updateLocation(id, { isArchived: true });
+      const ids = new Set([id, ...locations.filter((location) => location.parentId === id).map((location) => location.id)]);
+      await commitLocations(
+        locations.map((location) => (ids.has(location.id) ? { ...location, isArchived: true } : location)),
+      );
     },
-    [updateLocation],
+    [commitLocations, locations],
   );
 
   const moveLocation = useCallback(
     async (id: string, direction: -1 | 1) => {
-      const ordered = [...locations].filter((location) => !location.isArchived).sort(compareSortOrder);
+      const current = locations.find((location) => location.id === id);
+      if (!current) return;
+      const ordered = [...locations]
+        .filter((location) => !location.isArchived && location.parentId === current.parentId)
+        .sort(compareSortOrder);
       const index = ordered.findIndex((location) => location.id === id);
       const target = ordered[index + direction];
       if (index < 0 || !target) return;
@@ -373,6 +408,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       });
       const item: Item = {
         ...enrichedItem,
+        mode: draft.mode ?? "regular",
         expiryReminderEnabled: draft.expiryReminderEnabled ?? Boolean(enrichedItem.finalExpireDate),
         expiryReminderDays: draft.expiryReminderDays ?? 7,
       };
@@ -388,6 +424,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         createdAt: now,
       };
       await commitLogs([purchaseLog, ...logs]);
+      recordLocalProductEvent("item_created");
+      if (item.locationId) recordLocalProductEvent("item_created_with_location");
       return item.id;
     },
     [commitItems, commitLogs, items, logs],
@@ -396,6 +434,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const updateItem = useCallback(
     async (id: string, patch: Partial<Item>) => {
       const now = new Date().toISOString();
+      const previousItem = items.find((item) => item.id === id);
       const nextItems = items.map((item) => {
         if (item.id !== id) return item;
         const updatedItem = { ...item, ...patch, updatedAt: now };
@@ -406,6 +445,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       });
       await commitItems(nextItems);
       await createLog(id, "edit", undefined, nextItems.find((item) => item.id === id)?.quantity);
+      if (Object.prototype.hasOwnProperty.call(patch, "locationId") && previousItem?.locationId !== patch.locationId) {
+        recordLocalProductEvent("item_moved");
+      }
     },
     [commitItems, createLog, items],
   );
@@ -610,9 +652,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const replaceInventoryData = useCallback(async (data: InventorySyncData) => {
-    const nextItems = data.items.map((item) => enrichItem(normalizeItemImages(item)));
+    const nextItems = data.items.map((item) =>
+      normalizeItemMode(enrichItem(normalizeItemImages(item)), data.logs),
+    );
     const nextCategories = data.categories.length ? data.categories : defaultCategories;
-    const nextLocations = data.locations.length ? data.locations : defaultLocations;
+    const nextLocations = normalizeLocations(data.locations.length ? data.locations : defaultLocations);
 
     await Promise.all([
       itemRepository.replaceAll(nextItems),
@@ -750,6 +794,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       shoppingItems,
       getCategoryName,
       getLocationName,
+      getLocationPath: getLocationPathName,
       createCategory,
       updateCategory,
       archiveCategory,
@@ -786,6 +831,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       shoppingItems,
       getCategoryName,
       getLocationName,
+      getLocationPathName,
       createCategory,
       updateCategory,
       archiveCategory,
@@ -840,6 +886,7 @@ function needsNormalizedItemsWrite(storedItems: Item[], normalizedItems: Item[])
     if (!normalizedItem) return true;
     if (
       storedItem.status !== normalizedItem.status ||
+      storedItem.mode !== normalizedItem.mode ||
       storedItem.finalExpireDate !== normalizedItem.finalExpireDate ||
       storedItem.unitPrice !== normalizedItem.unitPrice ||
       storedItem.imageUrl !== undefined
@@ -850,6 +897,14 @@ function needsNormalizedItemsWrite(storedItems: Item[], normalizedItems: Item[])
     if (!Array.isArray(storedItem.imageUrls)) return true;
     if (storedItem.imageUrls.length !== normalizedItem.imageUrls?.length) return true;
     return storedItem.imageUrls.some((imageUrl, imageIndex) => imageUrl !== normalizedItem.imageUrls?.[imageIndex]);
+  });
+}
+
+function needsNormalizedLocationsWrite(storedLocations: Location[], normalizedLocations: Location[]): boolean {
+  if (storedLocations.length !== normalizedLocations.length) return true;
+  return storedLocations.some((location, index) => {
+    const normalized = normalizedLocations[index];
+    return !normalized || location.kind !== normalized.kind || location.parentId !== normalized.parentId;
   });
 }
 

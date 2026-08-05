@@ -7,9 +7,12 @@ export type ItemStatus =
   | "transferred"
   | "long_term";
 
+export type ItemMode = "regular" | "consumable";
+
 export type Item = {
   id: string;
   name: string;
+  mode?: ItemMode;
   categoryId: string;
   quantity: number;
   initialQuantity: number;
