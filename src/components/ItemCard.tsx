@@ -26,11 +26,19 @@ export function ItemCard({
   const coverImageUrl = getItemImageUrls(item)[0];
   const isGrid = viewMode === "grid";
   const hasActualDailyCost = item.actualDailyCost !== null && item.actualDailyCost !== undefined;
+  const isConsumable = item.mode === "consumable";
 
   return (
     <article
       className={`item-card ${compact ? "item-card--compact" : ""} ${isGrid ? "item-card--grid" : ""}`}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (!onClick || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        onClick();
+      }}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {isGrid && coverImageUrl ? <img className="item-card__grid-image" src={coverImageUrl} alt="" /> : null}
       <div className="item-card__main">
@@ -39,27 +47,27 @@ export function ItemCard({
           <div>
             <div className="item-card__title-row">
               <h3>{item.name}</h3>
-              <StatusBadge status={item.status} />
+              {isConsumable ? <StatusBadge status={item.status} /> : null}
             </div>
             <div className="item-card__meta">
               <CategoryBadge label={categoryName} />
-              <span>{locationName}</span>
-              {isLowStock(item) ? <span className="low-stock">低库存</span> : null}
+              <span className="item-card__location">{locationName}</span>
+              {isConsumable && isLowStock(item) ? <span className="low-stock">低库存</span> : null}
             </div>
           </div>
         </div>
-        <strong className="remaining-days">{formatRemainingDays(remainingDays)}</strong>
+        {isConsumable && remainingDays !== undefined ? <strong className="remaining-days">{formatRemainingDays(remainingDays)}</strong> : null}
       </div>
-      {!compact ? (
+      {!compact && isConsumable ? (
         <div className="item-card__footer">
-          <span>
+          {isConsumable ? <span>
             {item.quantity}
             {item.unit}
-          </span>
+          </span> : null}
           {item.totalPrice !== undefined && item.totalPrice !== null ? (
             <span>购买价 {formatCurrency(item.totalPrice)}</span>
           ) : null}
-          {hasActualDailyCost ? (
+          {isConsumable && hasActualDailyCost ? (
             <strong className="item-card__actual-daily-cost">
               {isGrid ? "" : "实际日用 "}
               {formatCurrency(item.actualDailyCost ?? undefined)}/天

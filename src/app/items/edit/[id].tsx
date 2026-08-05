@@ -10,7 +10,7 @@ export default function EditItemPage({ itemId }: { itemId: string }) {
   const item = items.find((candidate) => candidate.id === itemId);
 
   if (!item) {
-    return <EmptyState title="物品不存在" action={<button onClick={() => navigate("/items")}>返回库存</button>} />;
+    return <EmptyState title="物品不存在" action={<button onClick={() => navigate("/")}>返回找东西</button>} />;
   }
 
   if (item.isPrivate && !isPrivateSessionUnlocked()) {

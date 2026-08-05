@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardPage from "./app/index";
-import InventoryPage from "./app/items";
 import ItemDetailPage from "./app/items/[id]";
 import EditItemPage from "./app/items/edit/[id]";
 import NewItemPage from "./app/items/new";
@@ -22,37 +21,35 @@ export function App() {
   return (
     <div className="phone-shell">
       <header className="app-header">
-        <button className="icon-button app-header__brand" type="button" onClick={() => navigate("/")}>
-          不忘物
-        </button>
-        <h1>{route.title}</h1>
-        {route.name === "settings" ? (
-          <span className="app-header__placeholder" aria-hidden="true" />
-        ) : (
-          <button className="icon-button" type="button" onClick={() => navigate("/settings")}>
-            设置
+        {getBackPath(route) ? (
+          <button className="icon-button app-header__back" type="button" onClick={() => navigate(getBackPath(route) ?? "/")} aria-label="返回">
+            ←
           </button>
-        )}
+        ) : <span className="app-header__placeholder" aria-hidden="true" />}
+        <h1>{route.title}</h1>
+        <span className="app-header__placeholder" aria-hidden="true" />
       </header>
       <main className="app-main">{isLoaded ? renderRoute(route) : <div className="loading">正在整理库存...</div>}</main>
       <nav className="tab-bar tab-bar--primary" aria-label="主导航">
-        <TabButton active={route.name === "dashboard"} path="/" label="首页" icon="⌂" />
         <TabButton
           active={
-            route.name === "items" ||
+            route.name === "find" ||
             route.name === "item" ||
             route.name === "private-items" ||
-            route.name === "rankings" ||
             route.name === "locations" ||
             route.name === "location"
           }
-          path="/items"
-          label="库存"
-          icon="▦"
+          path="/"
+          label="找东西"
+          icon="search"
         />
-        <TabButton active={route.name === "new" || route.name === "edit"} path="/items/new" label="添加" icon="＋" emphasis />
-        <TabButton active={route.name === "tasks"} path="/tasks" label="待办" icon="✓" />
-        <TabButton active={route.name === "settings" || route.name === "stats"} path="/settings" label="设置" icon="⚙" />
+        <TabButton active={route.name === "new"} path="/items/new" label="添加" icon="add" emphasis />
+        <TabButton
+          active={route.name === "settings" || route.name === "stats" || route.name === "rankings" || route.name === "tasks"}
+          path="/settings"
+          label="设置"
+          icon="settings"
+        />
       </nav>
     </div>
   );
@@ -60,10 +57,8 @@ export function App() {
 
 function renderRoute(route: Route) {
   switch (route.name) {
-    case "dashboard":
-      return <DashboardPage />;
-    case "items":
-      return <InventoryPage initialQuery={route.query} initialLocationId={route.locationId} />;
+    case "find":
+      return <DashboardPage initialQuery={route.query} initialLocationId={route.locationId} />;
     case "item":
       return <ItemDetailPage itemId={route.id} />;
     case "new":
@@ -97,7 +92,7 @@ function TabButton({
   active: boolean;
   path: string;
   label: string;
-  icon: string;
+  icon: "search" | "add" | "settings";
   emphasis?: boolean;
 }) {
   const classes = ["tab-button", active ? "tab-button--active" : "", emphasis ? "tab-button--emphasis" : ""]
@@ -105,10 +100,34 @@ function TabButton({
     .join(" ");
   return (
     <button className={classes} type="button" onClick={() => navigate(path)} aria-current={active ? "page" : undefined}>
-      <b aria-hidden="true">{icon}</b>
+      <TabIcon name={icon} />
       <span>{label}</span>
     </button>
   );
+}
+
+function TabIcon({ name }: { name: "search" | "add" | "settings" }) {
+  if (name === "search") {
+    return <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>;
+  }
+  if (name === "add") {
+    return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>;
+  }
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.5 1A8 8 0 0 0 14.7 6L14.3 3h-4.6l-.4 3a8 8 0 0 0-1.7 1.1l-2.5-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.5-1A8 8 0 0 0 9.3 18l.4 3h4.6l.4-3a8 8 0 0 0 1.7-1.1l2.5 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z" /></svg>;
+}
+
+function getBackPath(route: Route): string | undefined {
+  switch (route.name) {
+    case "item": return "/";
+    case "edit": return `/items/${route.id}`;
+    case "private-items": return "/settings";
+    case "rankings":
+    case "stats":
+    case "tasks": return "/settings";
+    case "locations": return "/";
+    case "location": return "/locations";
+    default: return undefined;
+  }
 }
 
 function useHashPath() {

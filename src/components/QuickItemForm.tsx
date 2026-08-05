@@ -6,6 +6,9 @@ import { recognizeItemImage } from "../services/imageRecognitionService";
 import { optimizeImageFile } from "../utils/imageUpload";
 import { MAX_ITEM_IMAGES, normalizeItemImageUrls } from "../utils/itemImages";
 import { loadRecentLocationIds, rememberLocationId } from "../services/recentLocationStorage";
+import { isAiRecognitionConfigured, loadAiRecognitionConfig } from "../services/aiRecognitionStorage";
+import type { ItemMode } from "../types/item";
+import { getLocationGroups, getLocationPath } from "../utils/locations";
 
 export type QuickItemFormData = {
   name: string;
@@ -19,6 +22,7 @@ export type QuickItemFormData = {
   locationId?: string;
   quantity?: number;
   unit?: string;
+  mode?: ItemMode;
 };
 
 type QuickItemFormProps = {
@@ -29,7 +33,7 @@ type QuickItemFormProps = {
 export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
   const { categories } = useCategoryStore();
   const { locations } = useLocationStore();
-  const [form, setForm] = useState<QuickItemFormData>({ name: "", imageUrls: [], ...initialData });
+  const [form, setForm] = useState<QuickItemFormData>({ name: "", imageUrls: [], mode: "regular", ...initialData });
   const [suggestion, setSuggestion] = useState<RecognitionResult>();
   const [isSuggestionApplied, setIsSuggestionApplied] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,6 +42,9 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
   const activeLocations = locations
     .filter((location) => !location.isArchived)
     .sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name));
+  const locationGroups = getLocationGroups(locations);
+  const aiConfig = loadAiRecognitionConfig();
+  const aiEnabled = isAiRecognitionConfigured(aiConfig);
   const recentLocationIds = loadRecentLocationIds();
   const quickLocations = recentLocationIds
     .map((id) => activeLocations.find((location) => location.id === id))
@@ -170,28 +177,33 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
                   className={form.locationId === location.id ? "is-active" : ""}
                   onClick={() => selectLocation(location.id)}
                 >
-                  {location.name}
+                  {getLocationPath(locations, location.id)}
                 </button>
               ))}
             </div>
           ) : null}
           <select value={form.locationId ?? ""} onChange={(event) => selectLocation(event.target.value)} aria-label="存放位置">
-            <option value="">暂不设置位置</option>
-            {activeLocations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+            <option value="">暂不设置，加入待归位</option>
+            {locationGroups.map(({ area, containers }) => (
+              <optgroup key={area.id} label={area.name}>
+                <option value={area.id}>{area.name}</option>
+                {containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              </optgroup>
+            ))}
           </select>
         </div>
       </section>
 
       <details className="quick-extras">
         <summary>
-          <span><strong>照片与智能识别</strong><small>{form.imageUrls.length ? `已添加 ${form.imageUrls.length} 张` : "可选"}</small></span>
+          <span><strong>{aiEnabled ? "照片与智能识别" : "照片与更多选项"}</strong><small>{form.imageUrls.length ? `已添加 ${form.imageUrls.length} 张` : "可选"}</small></span>
         </summary>
         <div className="quick-extras__body">
-          <div className="quick-extras__intro">
+          {aiEnabled ? <div className="quick-extras__intro">
             <strong>拍照自动填写</strong>
             <span>识别结果只会填入草稿，由你确认后保存。</span>
-          </div>
-          <div className="ai-recognition-actions">
+          </div> : null}
+          {aiEnabled ? <div className="ai-recognition-actions">
             <label className={busy ? "primary-button is-disabled" : "primary-button"}>
               {busy ? "正在识别..." : "拍照识别"}
               <input
@@ -213,7 +225,7 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
                 onChange={handleRecognitionImage}
               />
             </label>
-          </div>
+          </div> : null}
           {suggestion ? (
             <div className="ai-suggestion">
               <div className="ai-suggestion__fields">
@@ -278,6 +290,17 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
               <p className="image-upload__limit">已达到 5 张上限，删除图片后可继续添加。</p>
             )}
           </section>
+          <label className="privacy-toggle quick-mode-toggle">
+            <input
+              type="checkbox"
+              checked={form.mode === "consumable"}
+              onChange={(event) => setForm((current) => ({ ...current, mode: event.target.checked ? "consumable" : "regular" }))}
+            />
+            <span>
+              <strong>按消耗品管理</strong>
+              <small>开启后可记录数量、补充、用完和到期提醒。</small>
+            </span>
+          </label>
         </div>
       </details>
 

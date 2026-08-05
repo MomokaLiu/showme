@@ -14,6 +14,7 @@ import type { WebDavConfig, WebDavSyncMode } from "../../types/sync";
 import { DataSafetyCard } from "../../components/DataSafetyCard";
 import { navigate } from "../router";
 import { CategorySettingsCard } from "../../components/CategorySettingsCard";
+import { loadLocalProductMetrics } from "../../services/localProductMetrics";
 
 export default function SettingsPage() {
   const {
@@ -33,6 +34,7 @@ export default function SettingsPage() {
     message?: string;
     isError?: boolean;
   }>({ isTesting: false });
+  const localMetrics = loadLocalProductMetrics();
   const isJianguoyun = isJianguoyunUrl(webDavConfig.url);
   const host = typeof window === "undefined" ? "" : window.location.hostname;
   const androidTestUrl =
@@ -116,9 +118,8 @@ export default function SettingsPage() {
   return (
     <div className="page-stack settings-page">
       <section className="settings-link-list">
-        <button type="button" onClick={() => navigate("/locations")}><span><strong>存放位置</strong><small>房间、柜子和收纳盒</small></span><b>›</b></button>
-        <button type="button" onClick={() => navigate("/insights")}><span><strong>数据洞察</strong><small>价值、成本和浪费</small></span><b>›</b></button>
-        <button type="button" onClick={() => navigate("/rankings")}><span><strong>库存榜单</strong><small>闲置与使用价值</small></span><b>›</b></button>
+        <button type="button" onClick={() => navigate("/locations")}><span><strong>存放位置</strong><small>管理区域、柜子和收纳盒</small></span><b>›</b></button>
+        <button type="button" onClick={() => navigate("/items/private")}><span><strong>私密库存</strong><small>验证后查看隐藏物品</small></span><b>›</b></button>
       </section>
 
       <div className="settings-group-label">管理</div>
@@ -134,6 +135,18 @@ export default function SettingsPage() {
         <summary><strong>数据安全</strong><span>备份、导入与导出</span></summary>
         <section className="section-block settings-details__body">
           <DataSafetyCard />
+        </section>
+      </details>
+
+      <div className="settings-group-label">高级功能</div>
+
+      <details className="settings-details">
+        <summary><strong>消耗品与数据洞察</strong><span>仅在需要时使用</span></summary>
+        <section className="settings-details__body settings-link-list settings-link-list--nested">
+          <button type="button" onClick={() => navigate("/tasks")}><span><strong>到期提醒</strong><small>处理临期与过期消耗品</small></span><b>›</b></button>
+          <button type="button" onClick={() => navigate("/tasks/shopping")}><span><strong>补货清单</strong><small>管理待购买项目</small></span><b>›</b></button>
+          <button type="button" onClick={() => navigate("/insights")}><span><strong>数据洞察</strong><small>仅在数据充分时计算</small></span><b>›</b></button>
+          <button type="button" onClick={() => navigate("/rankings")}><span><strong>库存榜单</strong><small>价格、使用价值与闲置</small></span><b>›</b></button>
         </section>
       </details>
 
@@ -374,7 +387,16 @@ export default function SettingsPage() {
               <span>位置</span>
               <strong>{locations.length}</strong>
             </div>
+            <div className="detail-row">
+              <span>本机确认找到</span>
+              <strong>{localMetrics.item_found ?? 0}</strong>
+            </div>
+            <div className="detail-row">
+              <span>本机移动位置</span>
+              <strong>{localMetrics.item_moved ?? 0}</strong>
+            </div>
           </div>
+          <small className="privacy-disclaimer">这些计数只保存在本机，不包含物品名称、照片或位置内容，也不会上传。</small>
         </section>
       </details>
 

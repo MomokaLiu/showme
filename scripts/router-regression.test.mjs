@@ -25,8 +25,8 @@ test("item edit and detail routes keep their dynamic ids", () => {
 
 test("all static routes resolve to their dedicated pages", () => {
   const expectedRoutes = new Map([
-    ["/", "dashboard"],
-    ["/items", "items"],
+    ["/", "find"],
+    ["/items", "find"],
     ["/items/new", "new"],
     ["/items/private", "private-items"],
     ["/rankings", "rankings"],
@@ -46,8 +46,8 @@ test("all static routes resolve to their dedicated pages", () => {
 
 test("inventory search and location routes preserve their parameters", () => {
   assert.deepEqual(parseRoute("/items?q=AirPods&location=bedroom"), {
-    name: "items",
-    title: "库存",
+    name: "find",
+    title: "找东西",
     query: "AirPods",
     locationId: "bedroom",
   });

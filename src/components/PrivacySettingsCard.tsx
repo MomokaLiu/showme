@@ -92,7 +92,7 @@ export function PrivacySettingsCard() {
 
   return (
     <div className="privacy-settings-card">
-      <p>私密物品会从普通库存、首页、统计和榜单隐藏。解锁状态保留 10 分钟。</p>
+      <p>私密物品会从“找东西”、普通列表、统计和榜单隐藏。解锁状态保留 10 分钟。</p>
       <form className="form-stack" onSubmit={savePin}>
         {configured ? (
           <label className="field">

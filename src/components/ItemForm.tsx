@@ -1,15 +1,17 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useCategoryStore } from "../store/categoryStore";
 import { useLocationStore } from "../store/locationStore";
-import type { Item } from "../types/item";
+import type { Item, ItemMode } from "../types/item";
 import { optimizeImageFile } from "../utils/imageUpload";
 import { getItemImageUrls, MAX_ITEM_IMAGES, normalizeItemImageUrls } from "../utils/itemImages";
 import { calculateFinalExpireDate } from "../utils/itemCalculations";
 import { DatePickerField } from "./DatePickerField";
 import { NumberInputField } from "./NumberInputField";
+import { getLocationGroups } from "../utils/locations";
 
 export type ItemFormData = {
   name: string;
+  mode: ItemMode;
   categoryId: string;
   quantity: number;
   unit: string;
@@ -48,6 +50,7 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
   );
   const [form, setForm] = useState<ItemFormData>({
     name: initialItem?.name ?? "",
+    mode: initialItem?.mode ?? "regular",
     categoryId: initialItem?.categoryId ?? categories[0]?.id ?? "other",
     quantity: initialItem?.quantity ?? 1,
     unit: initialItem?.unit ?? "件",
@@ -75,6 +78,8 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
   const [submitError, setSubmitError] = useState<string>();
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const locationGroups = getLocationGroups(locations);
+  const isConsumable = form.mode === "consumable";
 
   const finalExpireDate = useMemo(() => {
     const previewItem = {
@@ -194,6 +199,13 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
             required
           />
         </label>
+        <label className="field">
+          <span>管理方式</span>
+          <select value={form.mode} onChange={(event) => updateField("mode", event.target.value as ItemMode)}>
+            <option value="regular">普通物品 · 重点记位置</option>
+            <option value="consumable">消耗品 · 管数量和到期</option>
+          </select>
+        </label>
         <div className="field-grid">
           <label className="field">
             <span>分类</span>
@@ -260,10 +272,10 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
         <div className="form-section__title">
           <div>
             <span>管理信息</span>
-            <h2>数量、位置与状态</h2>
+            <h2>{isConsumable ? "数量、位置与状态" : "位置与备注"}</h2>
           </div>
         </div>
-        <div className="field-grid">
+        {isConsumable ? <div className="field-grid">
           <NumberInputField
             label="数量"
             value={form.quantity}
@@ -276,20 +288,19 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
             <span>单位</span>
             <input value={form.unit} onChange={(event) => updateField("unit", event.target.value)} required />
           </label>
-        </div>
-        <div className="field-grid">
+        </div> : null}
+        <div className={isConsumable ? "field-grid" : ""}>
           <label className="field">
             <span>存放位置</span>
             <select value={form.locationId ?? ""} onChange={(event) => updateField("locationId", event.target.value)}>
-              <option value="">未设置</option>
-              {locations.filter((location) => !location.isArchived || location.id === form.locationId).sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name)).map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
+              <option value="">未设置 · 加入待归位</option>
+              {locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}>
+                <option value={area.id}>{area.name}</option>
+                {containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              </optgroup>)}
             </select>
           </label>
-          <label className="field">
+          {isConsumable ? <label className="field">
             <span>状态</span>
             <select
               value={form.status ?? "normal"}
@@ -301,7 +312,7 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
               <option value="discarded">已丢弃</option>
               <option value="transferred">已转让</option>
             </select>
-          </label>
+          </label> : null}
         </div>
         <label className="field">
           <span>标签</span>
@@ -333,7 +344,7 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
         </label>
       </section>
 
-      <section className="form-section">
+      {isConsumable ? <section className="form-section">
         <button type="button" className="form-section__toggle" onClick={() => setIsAdvancedOpen((open) => !open)}>
           <span>
             <b>保质期与开封信息</b>
@@ -394,7 +405,7 @@ export function ItemForm({ initialItem, submitLabel, onSubmit }: ItemFormProps) 
             ) : null}
           </div>
         ) : null}
-      </section>
+      </section> : null}
 
       <section className="image-upload" aria-label="物品图片（可选）">
         <div className="image-upload__header">
