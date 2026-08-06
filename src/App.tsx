@@ -25,11 +25,12 @@ export function App() {
         <header className="app-header app-header--home">
           <div className="app-header__home-brand">
             <h1>勿忘我</h1>
-            <span>不翻箱倒柜，直接找到</span>
+            <span>不用翻箱倒柜，直接找到</span>
           </div>
           <button className="icon-button app-header__settings" type="button" onClick={() => navigate("/settings")} aria-label="设置">
             <TabIcon name="settings" />
           </button>
+          <TeaCupIllustration />
         </header>
       ) : (
         <header className="app-header">
@@ -130,6 +131,24 @@ function TabIcon({ name }: { name: "search" | "add" | "settings" }) {
     return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>;
   }
   return <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.5 1A8 8 0 0 0 14.7 6L14.3 3h-4.6l-.4 3a8 8 0 0 0-1.7 1.1l-2.5-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.5-1A8 8 0 0 0 9.3 18l.4 3h4.6l.4-3a8 8 0 0 0 1.7-1.1l2.5 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z" /></svg>;
+}
+
+function TeaCupIllustration() {
+  return (
+    <div className="app-header__tea-art" aria-hidden="true">
+      <svg viewBox="0 0 150 92">
+        <ellipse className="tea-art__shadow" cx="91" cy="78" rx="46" ry="7" />
+        <path className="tea-art__steam tea-art__steam--one" d="M75 29c-8-9 7-11 0-21" />
+        <path className="tea-art__steam tea-art__steam--two" d="M94 28c-7-8 7-10 1-19" />
+        <path className="tea-art__cup" d="M53 34h67v20c0 16-13 25-33.5 25S53 70 53 54V34Z" />
+        <path className="tea-art__tea" d="M57 39c11 5 48 5 59 0" />
+        <path className="tea-art__handle" d="M120 42h8c16 0 14 23-3 23h-9" />
+        <path className="tea-art__leaf-stem" d="M35 70c8-18 18-31 34-43" />
+        <path className="tea-art__leaf" d="M36 61c-13-1-19-8-19-17 11-2 20 4 22 13" />
+        <path className="tea-art__leaf" d="M48 46c-3-11 2-20 12-24 5 10 1 20-8 26" />
+      </svg>
+    </div>
+  );
 }
 
 function getBackPath(route: Route): string | undefined {

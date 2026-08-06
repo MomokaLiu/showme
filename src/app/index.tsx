@@ -118,8 +118,7 @@ export default function FindPage({
 
       <section className="find-location-section">
         <div className="section-title find-location-heading">
-          <div><h2>按位置找</h2></div>
-          <button className="text-button" type="button" onClick={() => navigate("/locations")}>管理</button>
+          <div><h2>按位置找</h2><span>常用位置</span></div>
         </div>
         <div className="find-location-scroll" aria-label="按位置浏览">
           {locationGroups.map(({ area }, index) => {
@@ -133,6 +132,9 @@ export default function FindPage({
               </button>
             );
           })}
+          <button className="location-pill location-pill--manage" type="button" onClick={() => navigate("/locations")}>
+            <span aria-hidden="true">⚙️</span><strong>管理位置</strong>
+          </button>
         </div>
       </section>
 
@@ -145,22 +147,22 @@ export default function FindPage({
           <button className={sort !== "updated" ? "sort-icon-button is-active" : "sort-icon-button"} type="button" onClick={() => setSortOpen(true)} aria-label={`排序：${getSortLabel(sort)}`}>
             <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h11M8 12h8M8 18h5" /><path d="m3.5 5 2 2 2-2M5.5 7v11" /></svg>
           </button>
+          <label className={categoryId !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
+            <span className="sr-only">分类筛选</span>
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+              <option value="all">分类</option>{activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
           <label className={status !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
             <span className="sr-only">状态筛选</span>
             <select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
-              <option value="all">全部状态</option><option value="normal">正常</option><option value="near_expiry">临期</option><option value="expired">已过期</option><option value="finished">已用完</option><option value="discarded">已丢弃</option>
+              <option value="all">状态</option><option value="normal">正常</option><option value="near_expiry">临期</option><option value="expired">已过期</option><option value="finished">已用完</option><option value="discarded">已丢弃</option>
             </select>
           </label>
           <label className={locationId !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
             <span className="sr-only">位置筛选</span>
             <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
-              <option value="all">全部位置</option><option value="missing">待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}（全部）</option>{containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</optgroup>)}
-            </select>
-          </label>
-          <label className={categoryId !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
-            <span className="sr-only">分类筛选</span>
-            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-              <option value="all">全部分类</option>{activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              <option value="all">位置</option><option value="missing">待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}（全部）</option>{containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</optgroup>)}
             </select>
           </label>
           {status !== "all" || categoryId !== "all" || locationId !== "all" ? <button className="inventory-filter-clear" type="button" onClick={clearFacetFilters}>清除</button> : null}
