@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components/EmptyState";
 import { ItemCard } from "../components/ItemCard";
-import { loadInventoryViewMode, saveInventoryViewMode, type InventoryViewMode } from "../services/inventoryViewStorage";
 import { searchInventory, type InventorySearchSort } from "../services/inventorySearch";
-import { recordLocalProductEvent } from "../services/localProductMetrics";
 import { useInventoryStore } from "../store/itemStore";
 import type { ItemStatus } from "../types/item";
-import { getLocationDescendantIds, getLocationGroups, sortLocations } from "../utils/locations";
+import { getLocationDescendantIds, getLocationGroups } from "../utils/locations";
 import { getExpiredItems, getExpiringItems } from "../utils/statistics";
 import { navigate } from "./router";
 
@@ -26,17 +24,13 @@ export default function FindPage({
     shoppingItems,
     getCategoryName,
     getLocationPath,
-    updateItem,
   } = useInventoryStore();
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [categoryId, setCategoryId] = useState("all");
   const [locationId, setLocationId] = useState(initialLocationId === "" ? "missing" : initialLocationId || "all");
   const [sort, setSort] = useState<InventorySearchSort>(initialQuery ? "relevance" : "updated");
-  const [filtersOpen, setFiltersOpen] = useState(initialLocationId !== undefined);
-  const [viewMode, setViewMode] = useState<InventoryViewMode>(() => loadInventoryViewMode());
-  const [movingItemId, setMovingItemId] = useState<string>();
-  const [message, setMessage] = useState("");
+  const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -44,11 +38,24 @@ export default function FindPage({
     setSort(initialQuery ? "relevance" : "updated");
   }, [initialLocationId, initialQuery]);
 
+  useEffect(() => {
+    if (!sortOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSortOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [sortOpen]);
+
   const publicItems = items.filter((item) => !item.isPrivate);
   const activeItems = publicItems.filter((item) => item.status !== "finished" && item.status !== "discarded");
   const incompleteItems = activeItems.filter((item) => !item.locationId);
   const activeCategories = categories.filter((category) => !category.isArchived);
-  const activeLocations = sortLocations(locations.filter((location) => !location.isArchived));
   const locationGroups = getLocationGroups(locations);
   const reminderCount = getExpiringItems(publicItems, 7).length + getExpiredItems(publicItems).length;
   const shoppingCount = shoppingItems.filter((item) => !item.isPurchased).length;
@@ -70,11 +77,6 @@ export default function FindPage({
     ).filter((item) => !locationIds || (item.locationId ? locationIds.has(item.locationId) : false));
   }, [categoryId, getCategoryName, getLocationPath, locationId, locations, publicItems, query, sort, status]);
 
-  function submitSearch(event: FormEvent) {
-    event.preventDefault();
-    if (query.trim() && visibleItems.length === 0) recordLocalProductEvent("search_no_result");
-  }
-
   function clearFilters() {
     setQuery("");
     setStatus("all");
@@ -83,68 +85,53 @@ export default function FindPage({
     setSort("updated");
   }
 
-  function changeViewMode(mode: InventoryViewMode) {
-    setViewMode(mode);
-    saveInventoryViewMode(mode);
-  }
-
-  function confirmFound() {
-    recordLocalProductEvent("item_found");
-    setMessage("太好了，已记下这次成功找到。");
-  }
-
-  async function moveItem(itemId: string, nextLocationId: string) {
-    await updateItem(itemId, { locationId: nextLocationId || undefined });
-    setMovingItemId(undefined);
-    setMessage(nextLocationId ? `已移动到${getLocationPath(nextLocationId)}。` : "已设为待归位。");
+  function clearFacetFilters() {
+    setStatus("all");
+    setCategoryId("all");
+    setLocationId("all");
   }
 
   const hasFilters = Boolean(query) || status !== "all" || categoryId !== "all" || locationId !== "all";
-  const activeFilterCount = Number(status !== "all") + Number(categoryId !== "all") + Number(locationId !== "all");
 
   return (
     <div className="page-stack find-page">
-      <section className="home-search-panel">
-        <span>不翻箱倒柜，直接找到</span>
-        <h2>东西放哪了？</h2>
-        <form className="home-search" onSubmit={submitSearch}>
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              if (event.target.value && sort !== "relevance") setSort("relevance");
-            }}
-            placeholder="搜索物品或位置"
-            aria-label="搜索物品或位置"
-          />
-          <button type="submit">查找</button>
-        </form>
-        <div className="home-primary-actions">
-          <button className="primary-button" type="button" onClick={() => navigate("/items/new")}>＋ 记一件物品</button>
-          <button className="text-button" type="button" onClick={() => navigate("/locations")}>按位置找 →</button>
-        </div>
+      <section className="home-search-panel home-search-panel--compact" aria-label="搜索">
+        <button
+          className="home-search-entry"
+          type="button"
+          onClick={() => navigate(`/search${query ? `?q=${encodeURIComponent(query)}` : ""}`)}
+          aria-label="进入搜索"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
+          <span>{query || "搜索物品、品牌或位置"}</span>
+          <b aria-hidden="true">›</b>
+        </button>
       </section>
-
-      {message ? <p className="find-feedback" role="status">{message}</p> : null}
 
       {incompleteItems.length || reminderCount || shoppingCount ? (
         <section className="find-context-strip" aria-label="待处理事项">
-          {incompleteItems.length ? <button type="button" onClick={() => { setLocationId("missing"); setFiltersOpen(true); }}>{incompleteItems.length} 件待归位</button> : null}
+          {incompleteItems.length ? <button type="button" onClick={() => setLocationId("missing")}>{incompleteItems.length} 件待归位</button> : null}
           {reminderCount ? <button type="button" onClick={() => navigate("/tasks")}>{reminderCount} 项到期提醒</button> : null}
           {shoppingCount ? <button type="button" onClick={() => navigate("/tasks/shopping")}>{shoppingCount} 项待购买</button> : null}
         </section>
       ) : null}
 
       <section className="find-location-section">
-        <div className="section-title">
-          <div><h2>按位置找</h2><span>区域和具体位置</span></div>
+        <div className="section-title find-location-heading">
+          <div><h2>按位置找</h2></div>
           <button className="text-button" type="button" onClick={() => navigate("/locations")}>管理</button>
         </div>
-        <div className="find-location-grid">
-          {locationGroups.slice(0, 4).map(({ area }) => {
+        <div className="find-location-scroll" aria-label="按位置浏览">
+          {locationGroups.map(({ area }, index) => {
             const ids = new Set(getLocationDescendantIds(locations, area.id));
             const count = activeItems.filter((item) => item.locationId && ids.has(item.locationId)).length;
-            return <button key={area.id} type="button" onClick={() => navigate(`/locations/${encodeURIComponent(area.id)}`)}><strong>{area.name}</strong><span>{count} 件</span></button>;
+            return (
+              <button className={`location-pill location-pill--${index % 6}`} key={area.id} type="button" onClick={() => navigate(`/locations/${encodeURIComponent(area.id)}`)}>
+                <span aria-hidden="true">{getLocationSymbol(area.id, area.name)}</span>
+                <strong>{area.name}</strong>
+                <small>{count} 件</small>
+              </button>
+            );
           })}
         </div>
       </section>
@@ -152,43 +139,38 @@ export default function FindPage({
       <section className="find-inventory-section">
         <div className="section-title find-inventory-heading">
           <div><h2>{query ? "查找结果" : "全部物品"}</h2><span>{visibleItems.length} 件</span></div>
-          <div className="view-mode-toggle" role="group" aria-label="物品显示模式">
-            <button type="button" className={viewMode === "list" ? "is-active" : ""} aria-pressed={viewMode === "list"} onClick={() => changeViewMode("list")}>☰</button>
-            <button type="button" className={viewMode === "grid" ? "is-active" : ""} aria-pressed={viewMode === "grid"} onClick={() => changeViewMode("grid")}>▦</button>
-          </div>
         </div>
 
-        <div className="inventory-toolbar">
-          <button className={activeFilterCount ? "filter-trigger is-active" : "filter-trigger"} type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>
-            筛选{activeFilterCount ? ` · ${activeFilterCount}` : ""}
+        <div className="inventory-filter-strip" aria-label="筛选与排序">
+          <button className={sort !== "updated" ? "sort-icon-button is-active" : "sort-icon-button"} type="button" onClick={() => setSortOpen(true)} aria-label={`排序：${getSortLabel(sort)}`}>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h11M8 12h8M8 18h5" /><path d="m3.5 5 2 2 2-2M5.5 7v11" /></svg>
           </button>
-          <label className="inventory-sort-control">
-            <span className="sr-only">排序</span>
-            <select value={sort} onChange={(event) => setSort(event.target.value as InventorySearchSort)}>
-              {query ? <option value="relevance">最相关</option> : null}
-              <option value="updated">最近更新</option>
-              <option value="expire">即将过期</option>
-              <option value="purchase">最近购买</option>
+          <label className={status !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
+            <span className="sr-only">状态筛选</span>
+            <select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
+              <option value="all">全部状态</option><option value="normal">正常</option><option value="near_expiry">临期</option><option value="expired">已过期</option><option value="finished">已用完</option><option value="discarded">已丢弃</option>
             </select>
           </label>
+          <label className={locationId !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
+            <span className="sr-only">位置筛选</span>
+            <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
+              <option value="all">全部位置</option><option value="missing">待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}（全部）</option>{containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</optgroup>)}
+            </select>
+          </label>
+          <label className={categoryId !== "all" ? "inventory-filter-chip is-active" : "inventory-filter-chip"}>
+            <span className="sr-only">分类筛选</span>
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+              <option value="all">全部分类</option>{activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
+          {status !== "all" || categoryId !== "all" || locationId !== "all" ? <button className="inventory-filter-clear" type="button" onClick={clearFacetFilters}>清除</button> : null}
         </div>
 
-        {filtersOpen ? <div className="inventory-filter-grid">
-          <label><span>状态</span><select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}><option value="all">全部状态</option><option value="normal">正常</option><option value="near_expiry">临期</option><option value="expired">已过期</option><option value="finished">已用完</option><option value="discarded">已丢弃</option></select></label>
-          <label><span>位置</span><select value={locationId} onChange={(event) => setLocationId(event.target.value)}><option value="all">全部位置</option><option value="missing">待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}（全部）</option>{containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</optgroup>)}</select></label>
-          <label><span>分类</span><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="all">全部分类</option>{activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-        </div> : null}
-
         {visibleItems.length ? (
-          <div className={viewMode === "grid" ? "inventory-grid" : "list-stack"}>
+          <div className="inventory-grid">
             {visibleItems.map((item) => (
               <div className="find-result-card" key={item.id}>
-                <ItemCard item={item} categoryName={getCategoryName(item.categoryId)} locationName={getLocationPath(item.locationId)} viewMode={viewMode} onClick={() => navigate(`/items/${item.id}`)} />
-                {viewMode === "list" ? <div className="find-result-actions">
-                  <button type="button" onClick={confirmFound}>找到了</button>
-                  <button type="button" onClick={() => setMovingItemId((current) => current === item.id ? undefined : item.id)}>移动位置</button>
-                </div> : null}
-                {movingItemId === item.id ? <div className="find-quick-move"><label><span>移动到</span><select value={item.locationId ?? ""} onChange={(event) => void moveItem(item.id, event.target.value)}><option value="">待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}</option>{containers.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</optgroup>)}</select></label></div> : null}
+                <ItemCard item={item} categoryName={getCategoryName(item.categoryId)} locationName={getLocationPath(item.locationId)} viewMode="grid" onClick={() => navigate(`/items/${item.id}`)} />
               </div>
             ))}
           </div>
@@ -200,6 +182,59 @@ export default function FindPage({
           />
         )}
       </section>
+
+      {sortOpen ? (
+        <div className="sort-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSortOpen(false); }}>
+          <section className="sort-sheet" role="dialog" aria-modal="true" aria-labelledby="sort-sheet-title">
+            <div className="sort-sheet__header">
+              <div><span>物品排序</span><h2 id="sort-sheet-title">选择排序方式</h2></div>
+              <button type="button" onClick={() => setSortOpen(false)} aria-label="关闭排序">×</button>
+            </div>
+            <div className="sort-sheet__options" role="radiogroup" aria-label="排序方式">
+              {getSortOptions(Boolean(query)).map((option) => (
+                <button type="button" role="radio" aria-checked={sort === option.value} className={sort === option.value ? "is-selected" : ""} key={option.value} onClick={() => setSort(option.value)}>
+                  <span><strong>{option.label}</strong><small>{option.description}</small></span><i aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+            <div className="sort-sheet__actions">
+              <button type="button" onClick={() => setSort(query ? "relevance" : "updated")}>重置</button>
+              <button type="button" onClick={() => setSortOpen(false)}>完成</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function getLocationSymbol(id: string, name: string): string {
+  const symbols: Record<string, string> = {
+    fridge: "🧊",
+    freezer: "❄️",
+    kitchen: "🍳",
+    bathroom: "🫧",
+    bedroom: "🛏️",
+    living_room: "🛋️",
+    storage_box: "📦",
+    other: "📍",
+  };
+  if (symbols[id]) return symbols[id];
+  if (name.includes("冰") || name.includes("冷")) return "❄️";
+  if (name.includes("厨房")) return "🍳";
+  if (name.includes("卧室")) return "🛏️";
+  return "📍";
+}
+
+function getSortLabel(sort: InventorySearchSort): string {
+  return getSortOptions(true).find((option) => option.value === sort)?.label ?? "最近更新";
+}
+
+function getSortOptions(includeRelevance: boolean): Array<{ value: InventorySearchSort; label: string; description: string }> {
+  return [
+    ...(includeRelevance ? [{ value: "relevance" as const, label: "最相关", description: "优先显示最符合搜索词的物品" }] : []),
+    { value: "updated", label: "最近更新", description: "最近修改的物品排在前面" },
+    { value: "expire", label: "即将过期", description: "更接近到期日的物品排在前面" },
+    { value: "purchase", label: "最近购买", description: "购买日期较新的物品排在前面" },
+  ];
 }

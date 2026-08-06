@@ -1,7 +1,7 @@
 {
-  "name": "不忘物",
-  "short_name": "不忘物",
-  "description": "生活物件、食物有效期、库存数量和使用成本管理",
+  "name": "勿忘我",
+  "short_name": "勿忘我",
+  "description": "不翻箱倒柜，直接找到。记录生活物件、存放位置、有效期和库存。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
