@@ -126,7 +126,7 @@ export async function enrollDeviceAuthentication(): Promise<void> {
   const credential = (await navigator.credentials.create({
     publicKey: {
       challenge,
-      rp: { name: "不忘物" },
+      rp: { name: "勿忘我" },
       user: { id: userId, name: "private-inventory", displayName: "私密库存" },
       pubKeyCredParams: [
         { type: "public-key", alg: -7 },

@@ -2,6 +2,7 @@ export type TaskSection = "reminders" | "shopping";
 
 export type Route =
   | { name: "find"; title: string; query?: string; locationId?: string }
+  | { name: "search"; title: string; query?: string }
   | { name: "item"; title: string; id: string }
   | { name: "new"; title: string }
   | { name: "edit"; title: string; id: string }
@@ -26,6 +27,7 @@ export function parseRoute(pathWithQuery: string): Route {
   if (path === "/items/private") return { name: "private-items", title: "私密库存" };
   if (path === "/rankings") return { name: "rankings", title: "库存榜单" };
   if (path === "/locations") return { name: "locations", title: "存放位置" };
+  if (path === "/search") return { name: "search", title: "搜索", query: search.get("q") ?? undefined };
 
   const locationMatch = path.match(/^\/locations\/([^/]+)$/);
   if (locationMatch) return { name: "location", title: "位置详情", id: decodeURIComponent(locationMatch[1]) };
@@ -39,7 +41,7 @@ export function parseRoute(pathWithQuery: string): Route {
   if (path === "/" || path === "/items") {
     return {
       name: "find",
-      title: "找东西",
+      title: "勿忘我",
       query: search.get("q") ?? undefined,
       locationId: search.get("location") ?? undefined,
     };
@@ -52,5 +54,5 @@ export function parseRoute(pathWithQuery: string): Route {
   }
   if (path === "/insights" || path === "/stats") return { name: "stats", title: "数据洞察" };
   if (path === "/settings") return { name: "settings", title: "设置" };
-  return { name: "find", title: "找东西" };
+  return { name: "find", title: "勿忘我" };
 }

@@ -159,7 +159,6 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             placeholder="例如 AirPods Pro"
-            autoFocus
             required
           />
         </label>

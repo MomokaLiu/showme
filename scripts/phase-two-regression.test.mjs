@@ -22,6 +22,7 @@ const imageRecognition = await loadModule("src/services/imageRecognitionService.
 const privacy = await loadModule("src/services/privacyService.ts", "privacy");
 const inventorySearch = await loadModule("src/services/inventorySearch.ts", "inventory-search");
 const reminder = await loadModule("src/services/reminderService.ts", "reminder-service");
+const searchHistory = await loadModule("src/services/searchHistoryStorage.ts", "search-history");
 
 after(() => Promise.all(outputs.map((path) => rm(path, { force: true }))));
 
@@ -56,6 +57,26 @@ test("inventory view mode is remembered and unknown values fall back to list", (
   assert.equal(viewStorage.loadInventoryViewMode(storage), "grid");
   values.set("buwangwu.inventoryViewMode", "unexpected");
   assert.equal(viewStorage.loadInventoryViewMode(storage), "list");
+});
+
+test("search history keeps recent unique terms and can be cleared", () => {
+  const values = new Map();
+  const storage = {
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+  };
+
+  searchHistory.rememberSearch("  咖啡  ", storage);
+  searchHistory.rememberSearch("收纳箱", storage);
+  searchHistory.rememberSearch("咖啡", storage);
+  assert.deepEqual(searchHistory.loadSearchHistory(storage), ["咖啡", "收纳箱"]);
+
+  searchHistory.clearSearchHistory(storage);
+  assert.deepEqual(searchHistory.loadSearchHistory(storage), []);
 });
 
 test("daily-cost ranking ignores empty costs and sorts descending", () => {

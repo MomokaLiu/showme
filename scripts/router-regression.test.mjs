@@ -29,6 +29,7 @@ test("all static routes resolve to their dedicated pages", () => {
     ["/items", "find"],
     ["/items/new", "new"],
     ["/items/private", "private-items"],
+    ["/search", "search"],
     ["/rankings", "rankings"],
     ["/locations", "locations"],
     ["/tasks", "tasks"],
@@ -47,9 +48,14 @@ test("all static routes resolve to their dedicated pages", () => {
 test("inventory search and location routes preserve their parameters", () => {
   assert.deepEqual(parseRoute("/items?q=AirPods&location=bedroom"), {
     name: "find",
-    title: "找东西",
+    title: "勿忘我",
     query: "AirPods",
     locationId: "bedroom",
+  });
+  assert.deepEqual(parseRoute("/search?q=咖啡"), {
+    name: "search",
+    title: "搜索",
+    query: "咖啡",
   });
   assert.deepEqual(parseRoute("/locations/storage_box"), {
     name: "location",

@@ -252,7 +252,7 @@ export default function SettingsPage() {
               type="url"
               value={webDavConfig.url}
               onChange={(event) => updateWebDavConfig("url", event.target.value)}
-              placeholder="https://dav.example.com/不忘物/"
+              placeholder="https://dav.example.com/勿忘我/"
               autoCapitalize="none"
               autoCorrect="off"
             />

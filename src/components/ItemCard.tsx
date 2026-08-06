@@ -40,10 +40,18 @@ export function ItemCard({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
-      {isGrid && coverImageUrl ? <img className="item-card__grid-image" src={coverImageUrl} alt="" /> : null}
+      {isGrid ? (
+        coverImageUrl
+          ? <img className="item-card__grid-image" src={coverImageUrl} alt="" />
+          : <ImagePlaceholder className="item-card__grid-image" />
+      ) : null}
       <div className="item-card__main">
         <div className="item-card__content">
-          {!isGrid && coverImageUrl ? <img className="item-card__image" src={coverImageUrl} alt="" /> : null}
+          {!isGrid ? (
+            coverImageUrl
+              ? <img className="item-card__image" src={coverImageUrl} alt="" />
+              : <ImagePlaceholder className="item-card__image" />
+          ) : null}
           <div>
             <div className="item-card__title-row">
               <h3>{item.name}</h3>
@@ -76,5 +84,18 @@ export function ItemCard({
         </div>
       ) : null}
     </article>
+  );
+}
+
+function ImagePlaceholder({ className }: { className: string }) {
+  return (
+    <div className={`${className} item-card__image-placeholder`} role="img" aria-label="暂无图片">
+      <svg aria-hidden="true" viewBox="0 0 32 32">
+        <rect x="3.5" y="5.5" width="25" height="21" rx="4" />
+        <circle cx="11" cy="12" r="2.5" />
+        <path d="m6.5 23 6.8-6.8 4.2 4.2 3.2-3.2 4.8 5.8" />
+      </svg>
+      <span>暂无图片</span>
+    </div>
   );
 }

@@ -93,7 +93,7 @@ export function getReminderDate(item: Item): Date | undefined {
 }
 
 function createReminderBody(item: Item): string {
-  if (!item.finalExpireDate) return "请打开不忘物查看详情。";
+  if (!item.finalExpireDate) return "请打开勿忘我查看详情。";
   return `预计 ${item.finalExpireDate} 到期，点此查看存放位置和处理方式。`;
 }
 

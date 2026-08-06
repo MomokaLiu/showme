@@ -7,6 +7,7 @@ import PrivateInventoryPage from "./app/items/private";
 import LocationDetailPage from "./app/locations/[id]";
 import LocationsPage from "./app/locations";
 import RankingsPage from "./app/rankings";
+import SearchPage from "./app/search";
 import SettingsPage from "./app/settings";
 import StatsPage from "./app/stats";
 import TasksPage from "./app/tasks";
@@ -20,20 +21,33 @@ export function App() {
 
   return (
     <div className="phone-shell">
-      <header className="app-header">
-        {getBackPath(route) ? (
-          <button className="icon-button app-header__back" type="button" onClick={() => navigate(getBackPath(route) ?? "/")} aria-label="返回">
-            ←
+      {route.name === "find" ? (
+        <header className="app-header app-header--home">
+          <div className="app-header__home-brand">
+            <h1>勿忘我</h1>
+            <span>不翻箱倒柜，直接找到</span>
+          </div>
+          <button className="icon-button app-header__settings" type="button" onClick={() => navigate("/settings")} aria-label="设置">
+            <TabIcon name="settings" />
           </button>
-        ) : <span className="app-header__placeholder" aria-hidden="true" />}
-        <h1>{route.title}</h1>
-        <span className="app-header__placeholder" aria-hidden="true" />
-      </header>
+        </header>
+      ) : (
+        <header className="app-header">
+          {getBackPath(route) ? (
+            <button className="icon-button app-header__back" type="button" onClick={() => navigate(getBackPath(route) ?? "/")} aria-label="返回">
+              ←
+            </button>
+          ) : <span className="app-header__placeholder" aria-hidden="true" />}
+          <h1>{route.title}</h1>
+          <span className="app-header__placeholder" aria-hidden="true" />
+        </header>
+      )}
       <main className="app-main">{isLoaded ? renderRoute(route) : <div className="loading">正在整理库存...</div>}</main>
       <nav className="tab-bar tab-bar--primary" aria-label="主导航">
         <TabButton
           active={
             route.name === "find" ||
+            route.name === "search" ||
             route.name === "item" ||
             route.name === "private-items" ||
             route.name === "locations" ||
@@ -59,6 +73,8 @@ function renderRoute(route: Route) {
   switch (route.name) {
     case "find":
       return <DashboardPage initialQuery={route.query} initialLocationId={route.locationId} />;
+    case "search":
+      return <SearchPage initialQuery={route.query} />;
     case "item":
       return <ItemDetailPage itemId={route.id} />;
     case "new":
@@ -118,6 +134,7 @@ function TabIcon({ name }: { name: "search" | "add" | "settings" }) {
 
 function getBackPath(route: Route): string | undefined {
   switch (route.name) {
+    case "search": return "/";
     case "item": return "/";
     case "edit": return `/items/${route.id}`;
     case "private-items": return "/settings";
