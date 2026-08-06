@@ -89,12 +89,13 @@ test("recognizeItemImage sends correct model gemini-3.6-flash and headers to Gem
     const categories = [{ id: "cat-1", name: "数码电子" }];
     const testImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-    const result = await imageRecognition.recognizeItemImage(testImage, categories, config);
+    const result = await imageRecognition.recognizeItemImage([testImage, `${testImage}#second`], categories, config);
 
     assert.equal(capturedUrl, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
     assert.equal(capturedOptions.headers["Authorization"], "Bearer test-gemini-key");
     const payload = JSON.parse(capturedOptions.body);
     assert.equal(payload.model, "gemini-3.6-flash");
+    assert.equal(payload.messages[1].content.filter((entry) => entry.type === "image_url").length, 2);
     assert.equal(result.name, "测试商品");
     assert.equal(result.brand, "Gemini Brand");
 

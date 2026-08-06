@@ -39,6 +39,8 @@ export type Item = {
   imageUrl?: string;
   tags?: string[];
   note?: string;
+  findCount?: number;
+  lastFoundAt?: string;
   status: ItemStatus;
   finishDate?: string;
   discardDate?: string;

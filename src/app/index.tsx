@@ -5,6 +5,7 @@ import { searchInventory, type InventorySearchSort } from "../services/inventory
 import { useInventoryStore } from "../store/itemStore";
 import type { ItemStatus } from "../types/item";
 import { getLocationDescendantIds, getLocationGroups } from "../utils/locations";
+import { getLocationSymbol } from "../utils/locationPresentation";
 import { getExpiredItems, getExpiringItems } from "../utils/statistics";
 import { navigate } from "./router";
 
@@ -92,6 +93,7 @@ export default function FindPage({
   }
 
   const hasFilters = Boolean(query) || status !== "all" || categoryId !== "all" || locationId !== "all";
+  const foundVia = query ? "search" : locationId !== "all" ? "location" : undefined;
 
   return (
     <div className="page-stack find-page">
@@ -172,7 +174,7 @@ export default function FindPage({
           <div className="inventory-grid">
             {visibleItems.map((item) => (
               <div className="find-result-card" key={item.id}>
-                <ItemCard item={item} categoryName={getCategoryName(item.categoryId)} locationName={getLocationPath(item.locationId)} viewMode="grid" onClick={() => navigate(`/items/${item.id}`)} />
+                <ItemCard item={item} categoryName={getCategoryName(item.categoryId)} locationName={getLocationPath(item.locationId)} viewMode="grid" onClick={() => navigate(`/items/${item.id}${foundVia ? `?foundVia=${foundVia}` : ""}`)} />
               </div>
             ))}
           </div>
@@ -208,24 +210,6 @@ export default function FindPage({
       ) : null}
     </div>
   );
-}
-
-function getLocationSymbol(id: string, name: string): string {
-  const symbols: Record<string, string> = {
-    fridge: "🧊",
-    freezer: "❄️",
-    kitchen: "🍳",
-    bathroom: "🫧",
-    bedroom: "🛏️",
-    living_room: "🛋️",
-    storage_box: "📦",
-    other: "📍",
-  };
-  if (symbols[id]) return symbols[id];
-  if (name.includes("冰") || name.includes("冷")) return "❄️";
-  if (name.includes("厨房")) return "🍳";
-  if (name.includes("卧室")) return "🛏️";
-  return "📍";
 }
 
 function getSortLabel(sort: InventorySearchSort): string {

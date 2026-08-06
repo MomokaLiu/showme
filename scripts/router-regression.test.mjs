@@ -21,6 +21,17 @@ test("item edit and detail routes keep their dynamic ids", () => {
     title: "物品详情",
     id: "item-123",
   });
+  assert.deepEqual(parseRoute("/items/item-123?foundVia=search"), {
+    name: "item",
+    title: "物品详情",
+    id: "item-123",
+    foundVia: "search",
+  });
+  assert.deepEqual(parseRoute("/items/item-123?foundVia=unexpected"), {
+    name: "item",
+    title: "物品详情",
+    id: "item-123",
+  });
 });
 
 test("all static routes resolve to their dedicated pages", () => {
@@ -29,6 +40,8 @@ test("all static routes resolve to their dedicated pages", () => {
     ["/items", "find"],
     ["/items/new", "new"],
     ["/items/private", "private-items"],
+    ["/home", "home"],
+    ["/categories", "categories"],
     ["/search", "search"],
     ["/rankings", "rankings"],
     ["/locations", "locations"],
@@ -61,5 +74,18 @@ test("inventory search and location routes preserve their parameters", () => {
     name: "location",
     title: "位置详情",
     id: "storage_box",
+  });
+});
+
+test("settings keeps the correct top-level return destination", () => {
+  assert.deepEqual(parseRoute("/settings?from=find"), {
+    name: "settings",
+    title: "设置",
+    returnTo: "/",
+  });
+  assert.deepEqual(parseRoute("/settings?from=home"), {
+    name: "settings",
+    title: "设置",
+    returnTo: "/home",
   });
 });

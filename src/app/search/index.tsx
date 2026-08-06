@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { getMostFoundRanking } from "../../services/inventoryRankings";
 import { clearSearchHistory, loadSearchHistory, rememberSearch } from "../../services/searchHistoryStorage";
 import { useInventoryStore } from "../../store/itemStore";
 import { navigate } from "../router";
 
 export default function SearchPage({ initialQuery = "" }: { initialQuery?: string }) {
-  const { items, logs, getLocationPath } = useInventoryStore();
+  const { items, getLocationPath } = useInventoryStore();
   const [query, setQuery] = useState(initialQuery);
   const [history, setHistory] = useState(() => loadSearchHistory());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -14,20 +15,9 @@ export default function SearchPage({ initialQuery = "" }: { initialQuery?: strin
   }, []);
 
   const rankedItems = useMemo(() => {
-    const useCountByItem = new Map<string, number>();
-    for (const log of logs) {
-      if (log.actionType !== "consume" && log.actionType !== "open") continue;
-      useCountByItem.set(log.itemId, (useCountByItem.get(log.itemId) ?? 0) + 1);
-    }
-
-    return items
-      .filter((item) => !item.isPrivate && item.status !== "finished" && item.status !== "discarded")
-      .sort((left, right) => {
-        const countDifference = (useCountByItem.get(right.id) ?? 0) - (useCountByItem.get(left.id) ?? 0);
-        return countDifference || right.updatedAt.localeCompare(left.updatedAt);
-      })
-      .slice(0, 6);
-  }, [items, logs]);
+    const visibleItems = items.filter((item) => !item.isPrivate && item.status !== "finished" && item.status !== "discarded");
+    return getMostFoundRanking(visibleItems, 6);
+  }, [items]);
 
   function search(value: string) {
     const normalizedQuery = value.trim().replace(/\s+/g, " ");
@@ -79,20 +69,20 @@ export default function SearchPage({ initialQuery = "" }: { initialQuery?: strin
         <div className="search-suggestions__heading">
           <div>
             <h2 id="search-ranking-title">常找榜单</h2>
-            <span>根据使用记录和最近更新生成</span>
+            <span>从搜索或位置打开物品后，找到次数 +1</span>
           </div>
         </div>
         {rankedItems.length ? (
           <div className="search-ranking-list">
-            {rankedItems.map((item, index) => (
-              <button type="button" key={item.id} onClick={() => search(item.name)}>
+            {rankedItems.map((entry, index) => (
+              <button type="button" key={entry.item.id} onClick={() => navigate(`/items/${entry.item.id}`)}>
                 <b className={index < 3 ? "is-top" : ""}>{index + 1}</b>
-                <span><strong>{item.name}</strong><small>{getLocationPath(item.locationId)}</small></span>
+                <span><strong>{entry.item.name}</strong><small>{getLocationPath(entry.item.locationId)} · 找到 {entry.value} 次</small></span>
                 <i aria-hidden="true">›</i>
               </button>
             ))}
           </div>
-        ) : <p className="search-suggestions__empty">添加物品后，这里会自动生成榜单</p>}
+        ) : <p className="search-suggestions__empty">从搜索或位置找到并打开物品后，这里会生成榜单</p>}
       </section>
     </div>
   );

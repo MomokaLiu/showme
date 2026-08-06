@@ -12,13 +12,16 @@ type ChatCompletionResponse = {
 };
 
 export async function recognizeItemImage(
-  imageUri: string,
+  imageUri: string | string[],
   categories: Category[],
   config: AiRecognitionConfig = loadAiRecognitionConfig(),
 ): Promise<RecognitionResult> {
   if (!isAiRecognitionConfigured(config)) {
     throw new Error("请先在设置中配置 AI 识别服务。图片已保留，你仍可手动填写。");
   }
+
+  const imageUris = (Array.isArray(imageUri) ? imageUri : [imageUri]).filter(Boolean).slice(0, 5);
+  if (!imageUris.length) throw new Error("请先选择至少一张图片。");
 
   const response = await fetch(resolveChatCompletionsUrl(config.endpoint), {
     method: "POST",
@@ -46,7 +49,7 @@ export async function recognizeItemImage(
                 `categoryId 只能从以下列表选择：${categories.map((item) => `${item.id}=${item.name}`).join("，")}。` +
                 "tags 为简短字符串数组；totalPrice 仅在图片有明确价格时输出数字。",
             },
-            { type: "image_url", image_url: { url: imageUri } },
+            ...imageUris.map((url) => ({ type: "image_url" as const, image_url: { url } })),
           ],
         },
       ],

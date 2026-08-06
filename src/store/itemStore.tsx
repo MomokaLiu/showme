@@ -47,6 +47,7 @@ import { enrichItem } from "../utils/itemCalculations";
 import { reminderService } from "../services/reminderService";
 import { createInventoryBackup, type InventoryBackupReason } from "../services/inventoryBackupService";
 import { recordLocalProductEvent } from "../services/localProductMetrics";
+import { incrementItemFindCount } from "../services/itemFindTracking";
 import { normalizeItemMode } from "../utils/itemMode";
 import { getLocationPath, normalizeLocations } from "../utils/locations";
 
@@ -82,6 +83,7 @@ type InventoryStore = {
   moveLocation: (id: string, direction: -1 | 1) => Promise<void>;
   createItem: (draft: ItemDraft) => Promise<string>;
   updateItem: (id: string, patch: Partial<Item>) => Promise<void>;
+  recordItemFound: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   consumeItem: (id: string, quantity: number, note?: string) => Promise<void>;
   finishItem: (id: string, note?: string) => Promise<void>;
@@ -452,6 +454,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     [commitItems, createLog, items],
   );
 
+  const recordItemFound = useCallback(
+    async (id: string) => {
+      const nextItems = incrementItemFindCount(items, id);
+      if (nextItems === items) return;
+      await commitItems(nextItems);
+      recordLocalProductEvent("item_found");
+    },
+    [commitItems, items],
+  );
+
   const deleteItem = useCallback(
     async (id: string) => {
       await commitItems(items.filter((item) => item.id !== id));
@@ -805,6 +817,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       moveLocation,
       createItem,
       updateItem,
+      recordItemFound,
       deleteItem,
       consumeItem,
       finishItem,
@@ -842,6 +855,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       moveLocation,
       createItem,
       updateItem,
+      recordItemFound,
       deleteItem,
       consumeItem,
       finishItem,

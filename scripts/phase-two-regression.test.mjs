@@ -23,6 +23,7 @@ const privacy = await loadModule("src/services/privacyService.ts", "privacy");
 const inventorySearch = await loadModule("src/services/inventorySearch.ts", "inventory-search");
 const reminder = await loadModule("src/services/reminderService.ts", "reminder-service");
 const searchHistory = await loadModule("src/services/searchHistoryStorage.ts", "search-history");
+const findTracking = await loadModule("src/services/itemFindTracking.ts", "item-find-tracking");
 
 after(() => Promise.all(outputs.map((path) => rm(path, { force: true }))));
 
@@ -87,6 +88,33 @@ test("daily-cost ranking ignores empty costs and sorts descending", () => {
   ]);
 
   assert.deepEqual(result.map((entry) => entry.item.id), ["high", "low"]);
+});
+
+test("most-found ranking only uses explicit find counts and breaks ties by latest find", () => {
+  const result = rankings.getMostFoundRanking([
+    createItem("unused", { findCount: 0 }),
+    createItem("older", { findCount: 2, lastFoundAt: "2026-08-01T08:00:00.000Z" }),
+    createItem("latest", { findCount: 2, lastFoundAt: "2026-08-06T08:00:00.000Z" }),
+    createItem("most", { findCount: 5, lastFoundAt: "2026-07-01T08:00:00.000Z" }),
+  ]);
+
+  assert.deepEqual(result.map((entry) => [entry.item.id, entry.value]), [
+    ["most", 5],
+    ["latest", 2],
+    ["older", 2],
+  ]);
+});
+
+test("opening a found item increments only that item's find value", () => {
+  const items = [createItem("target", { findCount: 2 }), createItem("other")];
+  const foundAt = "2026-08-07T08:00:00.000Z";
+  const result = findTracking.incrementItemFindCount(items, "target", foundAt);
+
+  assert.equal(result[0].findCount, 3);
+  assert.equal(result[0].lastFoundAt, foundAt);
+  assert.equal(result[0].updatedAt, items[0].updatedAt);
+  assert.equal(result[1], items[1]);
+  assert.equal(findTracking.incrementItemFindCount(items, "missing", foundAt), items);
 });
 
 test("idle ranking uses the most recent real use and requires 30 idle days", () => {
