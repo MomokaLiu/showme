@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "../../components/EmptyState";
 import { ImageLightbox } from "../../components/ImageLightbox";
 import { PrivacyGate } from "../../components/PrivacyGate";
@@ -15,9 +15,9 @@ import {
 import { actionText, formatCurrency, formatNumber, formatRemainingDays } from "../../utils/formatters";
 import { getItemImageUrls } from "../../utils/itemImages";
 import { getLocationGroups } from "../../utils/locations";
-import { navigate } from "../router";
+import { navigate, type ItemFoundSource } from "../router";
 
-export default function ItemDetailPage({ itemId }: { itemId: string }) {
+export default function ItemDetailPage({ itemId, foundVia }: { itemId: string; foundVia?: ItemFoundSource }) {
   const {
     items,
     logs,
@@ -25,6 +25,7 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
     getCategoryName,
     getLocationPath,
     updateItem,
+    recordItemFound,
     consumeItem,
     finishItem,
     discardItem,
@@ -40,6 +41,7 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const countedEntryRef = useRef<string>();
   const item = items.find((candidate) => candidate.id === itemId);
   const imageUrls = item ? getItemImageUrls(item) : [];
   const locationGroups = getLocationGroups(locations);
@@ -47,6 +49,14 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
     () => logs.filter((log) => log.itemId === itemId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [itemId, logs],
   );
+
+  useEffect(() => {
+    if (!item || !foundVia) return;
+    const entryKey = `${itemId}:${foundVia}`;
+    if (countedEntryRef.current === entryKey) return;
+    countedEntryRef.current = entryKey;
+    void recordItemFound(itemId);
+  }, [foundVia, item, itemId, recordItemFound]);
 
   if (!item) return <EmptyState title="物品不存在" action={<button onClick={() => navigate("/")}>返回找东西</button>} />;
   if (item.isPrivate && !isPrivateSessionUnlocked()) return <PrivacyGate><ItemDetailPage itemId={itemId} /></PrivacyGate>;

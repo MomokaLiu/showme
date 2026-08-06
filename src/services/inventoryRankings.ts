@@ -25,6 +25,18 @@ export function getHighestDailyCostRanking(items: Item[], limit = 10): RankingEn
   );
 }
 
+export function getMostFoundRanking(items: Item[], limit = 10): RankingEntry[] {
+  return items
+    .filter((item) => (item.findCount ?? 0) > 0)
+    .map((item) => ({ item, value: item.findCount ?? 0 }))
+    .sort((a, b) =>
+      b.value - a.value ||
+      (b.item.lastFoundAt ?? "").localeCompare(a.item.lastFoundAt ?? "") ||
+      a.item.name.localeCompare(b.item.name, "zh-CN"),
+    )
+    .slice(0, limit);
+}
+
 export function getLongestUsedRanking(
   items: Item[],
   asOfDate = toDateInputValue(),

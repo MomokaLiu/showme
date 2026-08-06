@@ -13,15 +13,9 @@ import { useInventoryStore } from "../../store/itemStore";
 import type { WebDavConfig, WebDavSyncMode } from "../../types/sync";
 import { DataSafetyCard } from "../../components/DataSafetyCard";
 import { navigate } from "../router";
-import { CategorySettingsCard } from "../../components/CategorySettingsCard";
-import { loadLocalProductMetrics } from "../../services/localProductMetrics";
 
 export default function SettingsPage() {
   const {
-    categories,
-    locations,
-    items,
-    shoppingItems,
     webDavSyncState,
     testWebDavConnection,
     synchronizeWebDav,
@@ -34,7 +28,6 @@ export default function SettingsPage() {
     message?: string;
     isError?: boolean;
   }>({ isTesting: false });
-  const localMetrics = loadLocalProductMetrics();
   const isJianguoyun = isJianguoyunUrl(webDavConfig.url);
   const host = typeof window === "undefined" ? "" : window.location.hostname;
   const androidTestUrl =
@@ -118,18 +111,10 @@ export default function SettingsPage() {
   return (
     <div className="page-stack settings-page">
       <section className="settings-link-list">
-        <button type="button" onClick={() => navigate("/locations")}><span><strong>存放位置</strong><small>管理区域、柜子和收纳盒</small></span><b>›</b></button>
         <button type="button" onClick={() => navigate("/items/private")}><span><strong>私密库存</strong><small>验证后查看隐藏物品</small></span><b>›</b></button>
       </section>
 
-      <div className="settings-group-label">管理</div>
-
-      <details className="settings-details">
-        <summary><strong>分类管理</strong><span>{categories.filter((category) => !category.isArchived).length} 个使用中</span></summary>
-        <section className="section-block settings-details__body">
-          <CategorySettingsCard />
-        </section>
-      </details>
+      <div className="settings-group-label">隐私与数据</div>
 
       <details className="settings-details">
         <summary><strong>数据安全</strong><span>备份、导入与导出</span></summary>
@@ -138,15 +123,13 @@ export default function SettingsPage() {
         </section>
       </details>
 
-      <div className="settings-group-label">高级功能</div>
+      <div className="settings-group-label">提醒与扩展</div>
 
       <details className="settings-details">
-        <summary><strong>消耗品与数据洞察</strong><span>仅在需要时使用</span></summary>
+        <summary><strong>提醒与补货</strong><span>管理消耗品待办</span></summary>
         <section className="settings-details__body settings-link-list settings-link-list--nested">
           <button type="button" onClick={() => navigate("/tasks")}><span><strong>到期提醒</strong><small>处理临期与过期消耗品</small></span><b>›</b></button>
           <button type="button" onClick={() => navigate("/tasks/shopping")}><span><strong>补货清单</strong><small>管理待购买项目</small></span><b>›</b></button>
-          <button type="button" onClick={() => navigate("/insights")}><span><strong>数据洞察</strong><small>仅在数据充分时计算</small></span><b>›</b></button>
-          <button type="button" onClick={() => navigate("/rankings")}><span><strong>库存榜单</strong><small>价格、使用价值与闲置</small></span><b>›</b></button>
         </section>
       </details>
 
@@ -366,39 +349,6 @@ export default function SettingsPage() {
           </div>
         </section>
       </details> : null}
-
-      <details className="settings-details">
-        <summary><strong>数据概览</strong><span>{items.length} 件库存</span></summary>
-        <section className="section-block settings-details__body">
-          <div className="detail-grid">
-            <div className="detail-row">
-              <span>库存记录</span>
-              <strong>{items.length}</strong>
-            </div>
-            <div className="detail-row">
-              <span>购物项</span>
-              <strong>{shoppingItems.length}</strong>
-            </div>
-            <div className="detail-row">
-              <span>分类</span>
-              <strong>{categories.length}</strong>
-            </div>
-            <div className="detail-row">
-              <span>位置</span>
-              <strong>{locations.length}</strong>
-            </div>
-            <div className="detail-row">
-              <span>本机确认找到</span>
-              <strong>{localMetrics.item_found ?? 0}</strong>
-            </div>
-            <div className="detail-row">
-              <span>本机移动位置</span>
-              <strong>{localMetrics.item_moved ?? 0}</strong>
-            </div>
-          </div>
-          <small className="privacy-disclaimer">这些计数只保存在本机，不包含物品名称、照片或位置内容，也不会上传。</small>
-        </section>
-      </details>
 
     </div>
   );
