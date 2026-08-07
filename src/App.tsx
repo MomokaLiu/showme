@@ -20,9 +20,15 @@ export function App() {
   const path = useHashPath();
   const route = useMemo(() => parseRoute(path), [path]);
   const { isLoaded } = useInventoryStore();
+  const isSoftKeyboardOpen = useSoftKeyboardOpen();
+  const shellClassName = [
+    "phone-shell",
+    route.name === "search" ? "phone-shell--search" : "",
+    isSoftKeyboardOpen ? "phone-shell--keyboard-open" : "",
+  ].filter(Boolean).join(" ");
 
   return (
-    <div className={route.name === "search" ? "phone-shell phone-shell--search" : "phone-shell"}>
+    <div className={shellClassName}>
       {route.name === "find" ? (
         <header className="app-header app-header--home">
           <div className="app-header__home-brand">
@@ -50,7 +56,7 @@ export function App() {
         </header>
       )}
       <main className="app-main">{isLoaded ? renderRoute(route) : <div className="loading">正在整理库存...</div>}</main>
-      {route.name !== "search" ? <nav className="tab-bar tab-bar--primary" aria-label="主导航">
+      {route.name !== "search" && !isSoftKeyboardOpen ? <nav className="tab-bar tab-bar--primary" aria-label="主导航">
         <TabButton
           active={
             route.name === "find" ||
@@ -176,4 +182,61 @@ function useHashPath() {
 
 function normalizeHashPath(hash: string): string {
   return hash.replace(/^#/, "") || "/";
+}
+
+const SOFT_KEYBOARD_INPUT_TYPES = new Set(["", "text", "search", "email", "tel", "url", "password", "number"]);
+
+function isSoftKeyboardTarget(target: EventTarget | Element | null): target is HTMLElement {
+  if (!(target instanceof HTMLElement) || target.hasAttribute("disabled")) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && SOFT_KEYBOARD_INPUT_TYPES.has(target.type);
+}
+
+function useSoftKeyboardOpen() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    let restingHeight = viewport?.height ?? window.innerHeight;
+    let blurTimer: number | undefined;
+    const currentHeight = () => viewport?.height ?? window.innerHeight;
+
+    const updateFromViewport = () => {
+      const height = currentHeight();
+      const hasEditableFocus = isSoftKeyboardTarget(document.activeElement);
+      if (!hasEditableFocus) {
+        restingHeight = Math.max(restingHeight, height);
+        setIsOpen(false);
+        return;
+      }
+      setIsOpen(restingHeight - height > 120);
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (!isSoftKeyboardTarget(event.target)) return;
+      restingHeight = Math.max(restingHeight, currentHeight());
+      setIsOpen(true);
+    };
+
+    const handleFocusOut = () => {
+      window.clearTimeout(blurTimer);
+      blurTimer = window.setTimeout(() => {
+        if (!isSoftKeyboardTarget(document.activeElement)) setIsOpen(false);
+      }, 0);
+    };
+
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    viewport?.addEventListener("resize", updateFromViewport);
+    window.addEventListener("resize", updateFromViewport);
+    return () => {
+      window.clearTimeout(blurTimer);
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      viewport?.removeEventListener("resize", updateFromViewport);
+      window.removeEventListener("resize", updateFromViewport);
+    };
+  }, []);
+
+  return isOpen;
 }

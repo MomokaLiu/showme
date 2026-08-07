@@ -21,8 +21,6 @@ export default function EditItemPage({ itemId }: { itemId: string }) {
     );
   }
 
-  const isQuickCreated = window.sessionStorage.getItem("buwangwu.quickCreatedItemId") === itemId;
-
   async function handleSubmit(data: ItemFormData) {
     await updateItem(itemId, data);
     window.sessionStorage.removeItem("buwangwu.quickCreatedItemId");
@@ -30,13 +28,7 @@ export default function EditItemPage({ itemId }: { itemId: string }) {
   }
 
   return (
-    <div className="page-stack">
-      {isQuickCreated ? (
-        <section className="step-two-banner">
-          <strong>物品已创建</strong>
-          <span>Step 2 · 继续完善信息，或直接返回稍后再填。</span>
-        </section>
-      ) : null}
+    <div className="page-stack edit-item-page">
       <ItemForm initialItem={item} submitLabel="保存修改" onSubmit={handleSubmit} />
     </div>
   );

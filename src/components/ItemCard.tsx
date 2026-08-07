@@ -1,3 +1,4 @@
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import type { Item } from "../types/item";
 import { getItemImageUrls } from "../utils/itemImages";
 import { getRemainingDays, isLowStock } from "../utils/itemCalculations";
@@ -10,6 +11,7 @@ type ItemCardProps = {
   categoryName: string;
   locationName: string;
   onClick?: () => void;
+  onLongPress?: () => void;
   compact?: boolean;
   viewMode?: "list" | "grid";
 };
@@ -19,19 +21,66 @@ export function ItemCard({
   categoryName,
   locationName,
   onClick,
+  onLongPress,
   compact,
   viewMode = "list",
 }: ItemCardProps) {
+  const longPressTimerRef = useRef<number>();
+  const pointerStartRef = useRef<{ x: number; y: number }>();
+  const suppressClickRef = useRef(false);
   const remainingDays = getRemainingDays(item.finalExpireDate);
   const coverImageUrl = getItemImageUrls(item)[0];
   const isGrid = viewMode === "grid";
   const hasActualDailyCost = item.actualDailyCost !== null && item.actualDailyCost !== undefined;
   const isConsumable = item.mode === "consumable";
 
+  useEffect(() => () => window.clearTimeout(longPressTimerRef.current), []);
+
+  function clearLongPressTimer() {
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = undefined;
+  }
+
+  function startLongPress(event: ReactPointerEvent<HTMLElement>) {
+    if (!onLongPress || event.button !== 0) return;
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    clearLongPressTimer();
+    longPressTimerRef.current = window.setTimeout(() => {
+      suppressClickRef.current = true;
+      navigator.vibrate?.(18);
+      onLongPress();
+    }, 520);
+  }
+
+  function trackLongPress(event: ReactPointerEvent<HTMLElement>) {
+    const start = pointerStartRef.current;
+    if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 10) return;
+    clearLongPressTimer();
+  }
+
   return (
     <article
       className={`item-card ${compact ? "item-card--compact" : ""} ${isGrid ? "item-card--grid" : ""}`}
-      onClick={onClick}
+      onClick={(event) => {
+        if (suppressClickRef.current) {
+          event.preventDefault();
+          event.stopPropagation();
+          suppressClickRef.current = false;
+          return;
+        }
+        onClick?.();
+      }}
+      onPointerDown={startLongPress}
+      onPointerMove={trackLongPress}
+      onPointerUp={clearLongPressTimer}
+      onPointerCancel={clearLongPressTimer}
+      onPointerLeave={clearLongPressTimer}
+      onContextMenu={(event) => {
+        if (!onLongPress) return;
+        event.preventDefault();
+        suppressClickRef.current = true;
+        onLongPress();
+      }}
       onKeyDown={(event) => {
         if (!onClick || (event.key !== "Enter" && event.key !== " ")) return;
         event.preventDefault();
