@@ -4258,6 +4258,238 @@ label.secondary-button:focus-within {
   }
 }
 
+.new-item-location-summary {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border-radius: 13px;
+  background: #f1f5ef;
+}
+
+.new-item-location-summary__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: #e2ede5;
+  font-size: 17px;
+}
+
+.new-item-location-summary__copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.new-item-location-summary__copy small {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.new-item-location-summary__copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-item-location-summary > button {
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+/* The confirmation is a brief hand-off, not a third form step. */
+.quick-create-success {
+  gap: 10px;
+  padding-top: 12px;
+  text-align: left;
+}
+
+.quick-create-success__card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.quick-create-success .success-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 20px;
+}
+
+.quick-create-success__card > div {
+  display: grid;
+  gap: 2px;
+}
+
+.quick-create-success__card small {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.quick-create-success__card h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.quick-create-success__card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.quick-create-success__edit {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+/* Keep detailed editing calm: essentials first, optional data on demand. */
+.edit-item-page,
+.item-edit-form {
+  gap: 10px;
+}
+
+.item-edit-core {
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.item-edit-form .field-grid,
+.item-edit-consumable-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.item-edit-form .field {
+  gap: 6px;
+}
+
+.item-edit-form .field > span {
+  font-size: 11px;
+}
+
+.item-edit-form input,
+.item-edit-form select,
+.item-edit-form textarea {
+  min-height: 44px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.item-edit-form textarea {
+  min-height: 84px;
+}
+
+.item-edit-details {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.item-edit-details > summary {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.item-edit-details > summary::-webkit-details-marker,
+.item-edit-subdetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.item-edit-details > summary > span {
+  display: grid;
+  gap: 2px;
+}
+
+.item-edit-details > summary strong {
+  font-size: 14px;
+}
+
+.item-edit-details > summary small,
+.item-edit-subdetails > summary {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.item-edit-details > summary > b {
+  color: var(--text-muted);
+  font-size: 16px;
+  transition: transform 160ms ease;
+}
+
+.item-edit-details[open] > summary > b {
+  transform: rotate(180deg);
+}
+
+.item-edit-details__body {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.item-edit-details .privacy-toggle {
+  padding: 11px;
+}
+
+.item-edit-subdetails {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.item-edit-subdetails > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.item-edit-subdetails[open] > summary {
+  margin-bottom: 10px;
+}
+
+.item-edit-images-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 12px;
+  background: #f4f6f2;
+  text-align: center;
+}
+
+.item-edit-save {
+  min-height: 48px;
+  border-radius: 14px;
+}
+
 /* Home header stays deliberately quiet: one search entry only */
 .home-search-panel.home-search-panel--compact {
   padding: 0;
@@ -6020,4 +6252,753 @@ label.secondary-button:focus-within {
   .new-item-location-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Final quick-create overrides live after the original component styles. */
+.new-item-flow-header {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  padding: 10px 12px 9px 15px;
+}
+
+.new-item-progress {
+  width: min(100%, 180px);
+  grid-template-columns: 52px minmax(30px, 1fr) 52px;
+  gap: 0;
+}
+
+.new-item-progress > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.new-item-progress > button > small {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.new-item-progress > i {
+  align-self: start;
+  height: 2px;
+  margin: 12px -7px 0;
+}
+
+.ai-entry-button {
+  width: 42px;
+  min-height: 42px;
+  padding: 6px;
+  border-radius: 50%;
+}
+
+.ai-entry-button .new-item-ai-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.ai-entry-button small {
+  font-size: 8px;
+}
+
+.quick-create > .new-item-stage {
+  gap: 13px;
+  padding: 16px;
+}
+
+.new-item-stage .form-section__title h2 {
+  font-size: 18px;
+}
+
+.new-item-name-field {
+  gap: 6px;
+}
+
+.new-item-name-field > span {
+  font-size: 11px;
+}
+
+.new-item-name-field input {
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.new-item-location-options {
+  display: flex;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-right: -16px;
+  padding: 1px 16px 5px 1px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.new-item-location-options::-webkit-scrollbar {
+  display: none;
+}
+
+.new-item-location-options button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  scroll-snap-align: start;
+}
+
+.new-item-location-options button > span {
+  font-size: 18px;
+}
+
+.new-item-location-options button > strong {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Readable add/edit typography and a shallower navigation dock. */
+.phone-shell--keyboard-open .app-main {
+  padding-bottom: 18px;
+}
+
+.tab-bar--primary {
+  bottom: calc(4px + env(safe-area-inset-bottom));
+  padding: 2px 18px 3px;
+  border-radius: 16px;
+}
+
+.tab-bar--primary .tab-button {
+  min-height: 40px;
+  gap: 0;
+  padding: 2px 3px;
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.tab-bar--primary .tab-button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.tab-bar--primary .tab-button--emphasis svg {
+  width: 38px;
+  height: 38px;
+  margin-top: -14px;
+  padding: 8px;
+  border-width: 3px;
+}
+
+.app-main {
+  padding-bottom: 82px;
+}
+
+.new-item-progress > button > span {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.new-item-progress > button > small {
+  font-size: 12px;
+}
+
+.new-item-progress > i {
+  margin-top: 13px;
+}
+
+.ai-entry-button small {
+  font-size: 10px;
+}
+
+.new-item-stage .form-section__title small {
+  font-size: 12px;
+}
+
+.new-item-stage .form-section__title h2 {
+  font-size: 21px;
+}
+
+.new-item-stage .form-section__title span {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.new-item-name-field > span,
+.new-item-more-location > span {
+  font-size: 13px;
+}
+
+.new-item-name-field input {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.new-item-basic-consumable > label {
+  font-size: 14px;
+}
+
+.new-item-basic-consumable > p {
+  font-size: 13px;
+}
+
+.new-item-next,
+.new-item-save {
+  font-size: 15px;
+}
+
+.new-item-location-summary__copy small {
+  font-size: 11px;
+}
+
+.new-item-location-summary__copy strong {
+  font-size: 15px;
+}
+
+.new-item-location-summary > button {
+  font-size: 12px;
+}
+
+.new-item-location-options button > strong {
+  font-size: 13px;
+}
+
+.new-item-more-location select {
+  font-size: 14px;
+}
+
+.quick-create__skip,
+.new-item-image-selection__heading small,
+.new-item-image-selection > p {
+  font-size: 12px;
+}
+
+.new-item-ai-panel__header small,
+.new-item-image-sources small,
+.ai-recognition-trigger small {
+  font-size: 11px;
+}
+
+.new-item-ai-panel__header h2 {
+  font-size: 19px;
+}
+
+.new-item-ai-panel__header p {
+  font-size: 12px;
+}
+
+.new-item-image-sources strong,
+.new-item-image-selection__heading strong,
+.ai-recognition-trigger strong {
+  font-size: 15px;
+}
+
+.item-edit-core .form-section__title span {
+  font-size: 12px;
+}
+
+.item-edit-core .form-section__title h2 {
+  font-size: 20px;
+}
+
+.item-edit-form .field > span {
+  font-size: 13px;
+}
+
+.item-edit-form input,
+.item-edit-form select,
+.item-edit-form textarea {
+  min-height: 48px;
+  padding: 10px 12px;
+  font-size: 16px;
+}
+
+.item-edit-details > summary strong {
+  font-size: 16px;
+}
+
+.item-edit-details > summary small,
+.item-edit-subdetails > summary {
+  font-size: 12px;
+}
+
+.item-edit-form .privacy-toggle strong,
+.item-edit-form .image-upload__actions label,
+.item-edit-save {
+  font-size: 15px;
+}
+
+.item-edit-form .privacy-toggle small,
+.item-edit-form .image-upload__hint {
+  font-size: 12px;
+}
+
+/* Long-press inventory actions stay close to the selected object. */
+.item-card {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.item-hold-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(30, 42, 35, 0.2);
+  backdrop-filter: blur(2px);
+}
+
+.item-hold-menu {
+  display: grid;
+  width: min(100%, 310px);
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid rgba(205, 214, 207, 0.94);
+  border-radius: 24px;
+  background: rgba(251, 252, 248, 0.98);
+  box-shadow: 0 18px 48px rgba(31, 49, 39, 0.2);
+}
+
+.item-hold-menu__copy {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.item-hold-menu__copy small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.item-hold-menu__copy strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-hold-menu__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.item-hold-menu__choices button {
+  min-height: 42px;
+  border: 1px solid #cad5cc;
+  border-radius: 999px;
+  background: #f4f7f2;
+  color: var(--primary-strong);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.item-hold-menu__choices button.is-danger {
+  border-color: #e8c3bd;
+  background: #fbefed;
+  color: #a44338;
+}
+
+/* Device-width navigation with a little more breathing room. */
+.tab-bar--primary {
+  bottom: calc(5px + env(safe-area-inset-bottom));
+  width: calc(100% - 24px);
+  max-width: 456px;
+  padding: 4px 16px 5px;
+  border-radius: 18px;
+}
+
+.tab-bar--primary .tab-button {
+  min-height: 44px;
+  gap: 1px;
+  padding: 3px;
+  font-size: 12px;
+}
+
+.tab-bar--primary .tab-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tab-bar--primary .tab-button--emphasis svg {
+  width: 40px;
+  height: 40px;
+  margin-top: -15px;
+}
+
+.app-main {
+  padding-bottom: 88px;
+}
+
+/* Quick add: clearer progression, camera-AI cue and lighter controls. */
+.new-item-progress {
+  width: min(100%, 230px);
+  grid-template-columns: 60px minmax(60px, 1fr) 60px;
+}
+
+.new-item-progress > i {
+  margin-inline: -10px;
+}
+
+.ai-entry-button {
+  width: 44px;
+  min-height: 44px;
+}
+
+.ai-entry-button .new-item-ai-icon {
+  width: 25px;
+  height: 25px;
+}
+
+.new-item-name-field input {
+  min-height: 42px;
+  padding-block: 7px;
+}
+
+.new-item-basic-consumable {
+  display: flex;
+  grid-template-columns: none;
+  min-height: 28px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 1px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.new-item-basic-consumable > label {
+  gap: 7px;
+}
+
+.new-item-basic-consumable input {
+  width: 17px;
+  height: 17px;
+}
+
+.new-item-basic-consumable > button {
+  width: 17px;
+  height: 17px;
+  min-height: 17px;
+  border-color: #d2d8d3;
+  background: transparent;
+  color: #929a94;
+  font-size: 9px;
+}
+
+.new-item-basic-consumable > p {
+  flex: 0 0 100%;
+  padding: 8px 0 0 24px;
+  border-top: 0;
+}
+
+.new-item-location-options {
+  display: flex;
+  height: 94px;
+  flex-flow: column wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  column-gap: 8px;
+  row-gap: 8px;
+  margin-right: -16px;
+  padding: 1px 16px 5px 1px;
+}
+
+.new-item-location-options button {
+  height: 40px;
+  min-height: 40px;
+}
+
+.new-item-location-summary__icon {
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+/* Completion is a calm hand-off into the richer form. */
+.quick-create-success {
+  align-items: center;
+  gap: 12px;
+  padding: clamp(48px, 13vh, 108px) 8px 0;
+  text-align: center;
+}
+
+.quick-create-success__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 14px;
+  border: 0;
+  background: transparent;
+}
+
+.quick-create-success .success-mark {
+  width: 82px;
+  height: 82px;
+  background: #dcefe5;
+  font-size: 40px;
+}
+
+.quick-create-success__card small {
+  font-size: 11px;
+}
+
+.quick-create-success__card h2 {
+  font-size: 21px;
+}
+
+.quick-create-success > .primary-button,
+.quick-create-success__search {
+  width: min(100%, 340px);
+}
+
+.quick-create-success__search {
+  min-height: 44px;
+  border: 1px solid #d8ded9;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Rich editing: compact prior facts, centered purchase focus, calm optional groups. */
+.item-edit-core {
+  padding: 0;
+}
+
+.item-edit-core-details > summary {
+  min-height: 60px;
+  padding: 10px 14px;
+  background: #eef4ec;
+}
+
+.item-edit-core-details > summary strong {
+  font-size: 15px;
+}
+
+.item-edit-core-details > summary small {
+  overflow: hidden;
+  max-width: 240px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-edit-core-grid,
+.item-edit-purchase__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.item-edit-purchase {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-color: #bfd2c3;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(50, 78, 60, 0.06);
+}
+
+.item-edit-purchase__title {
+  justify-content: center;
+  text-align: center;
+}
+
+.item-edit-purchase__title > div {
+  justify-items: center;
+}
+
+.item-edit-purchase__title span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.item-edit-purchase__title h2 {
+  font-size: 20px;
+}
+
+.item-edit-purchase__title small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.item-edit-purchase input,
+.item-edit-purchase select {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.item-edit-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: 13px;
+  background: #f3f6f2;
+  cursor: pointer;
+}
+
+.item-edit-choice input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.item-edit-choice > span {
+  display: grid;
+  gap: 2px;
+}
+
+.item-edit-choice strong {
+  font-size: 14px;
+}
+
+.item-edit-choice small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.item-edit-image-workspace {
+  gap: 10px;
+  padding: 12px;
+}
+
+.item-edit-image-picker {
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed #afc2b4;
+  border-radius: 15px;
+  background: #f3f7f1;
+  color: var(--primary-strong);
+  cursor: pointer;
+}
+
+.item-edit-image-picker.is-disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.item-edit-image-picker__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: #deebe0;
+}
+
+.item-edit-image-picker__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.item-edit-image-picker > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.item-edit-image-picker strong {
+  font-size: 14px;
+}
+
+.item-edit-image-picker small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.item-edit-image-workspace .image-upload__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 360px) {
+  .new-item-progress {
+    width: min(100%, 205px);
+    grid-template-columns: 54px minmax(50px, 1fr) 54px;
+  }
+
+  .item-edit-core-grid,
+  .item-edit-purchase__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Stabilize two-row location pills and unify single-checkbox controls. */
+.new-item-location-options button {
+  flex: 0 0 40px;
+  width: max-content;
+  min-width: max-content;
+  max-width: none;
+}
+
+.new-item-location-options button > strong {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.single-check-option {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.item-edit-choice.single-check-option {
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 0;
+  border-radius: 0;
+}
+
+.item-edit-choice.single-check-option input {
+  margin-top: 1px;
+}
+
+.new-item-basic-consumable.single-check-option {
+  padding-block: 2px;
+}
+
+.item-edit-details > summary > .item-edit-disclosure {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  transform: none;
+}
+
+.item-edit-disclosure svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.item-edit-details[open] > summary > .item-edit-disclosure {
+  transform: rotate(180deg);
 }

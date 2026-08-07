@@ -8,7 +8,6 @@ import { MAX_ITEM_IMAGES, normalizeItemImageUrls } from "../utils/itemImages";
 import { loadRecentLocationIds, rememberLocationId } from "../services/recentLocationStorage";
 import { isAiRecognitionConfigured, loadAiRecognitionConfig } from "../services/aiRecognitionStorage";
 import type { ItemMode } from "../types/item";
-import { getLocationGroups, getLocationPath } from "../utils/locations";
 import { getLocationSymbol } from "../utils/locationPresentation";
 
 export type QuickItemFormData = {
@@ -47,7 +46,6 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
   const activeLocations = locations
     .filter((location) => !location.isArchived)
     .sort((left, right) => (left.sortOrder ?? 999) - (right.sortOrder ?? 999) || left.name.localeCompare(right.name));
-  const locationGroups = getLocationGroups(locations);
   const aiConfig = loadAiRecognitionConfig();
   const aiEnabled = isAiRecognitionConfigured(aiConfig);
   const recentLocationIds = loadRecentLocationIds();
@@ -56,15 +54,13 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
     .filter((location): location is (typeof activeLocations)[number] => Boolean(location));
   const selectedLocation = activeLocations.find((location) => location.id === form.locationId);
   const locationOptions = [
-    ...(selectedLocation ? [selectedLocation] : []),
     ...quickLocations,
-    ...activeLocations.filter((location) => !location.parentId),
-  ].filter((location, index, source) => source.findIndex((candidate) => candidate.id === location.id) === index).slice(0, 8);
+    ...activeLocations,
+  ].filter((location, index, source) => source.findIndex((candidate) => candidate.id === location.id) === index);
   const busy = processingImages || recognizing;
 
   function selectLocation(locationId: string) {
     setForm((current) => ({ ...current, locationId: locationId || undefined }));
-    if (locationId) rememberLocationId(locationId);
   }
 
   function resetFlowViewport() {
@@ -178,7 +174,9 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
     setSubmitting(true);
     setMessage("");
     try {
-      await onSubmit({ ...form, name: form.name.trim() });
+      const submittedForm = { ...form, name: form.name.trim() };
+      await onSubmit(submittedForm);
+      if (submittedForm.locationId) rememberLocationId(submittedForm.locationId);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "保存失败，请重试。");
       setSubmitting(false);
@@ -267,10 +265,10 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
                 <span>物品名称</span>
                 <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="例如 AirPods Pro" required />
               </label>
-              <div className="new-item-basic-consumable">
+              <div className="new-item-basic-consumable single-check-option">
                 <label>
                   <input type="checkbox" checked={form.mode === "consumable"} onChange={(event) => setForm((current) => ({ ...current, mode: event.target.checked ? "consumable" : "regular" }))} />
-                  <span>按消耗品管理</span>
+                  <span>消耗品</span>
                 </label>
                 <button type="button" aria-label="什么是消耗品管理" aria-expanded={showModeHelp} onClick={() => setShowModeHelp((value) => !value)}>?</button>
                 {showModeHelp ? <p>适合食品、清洁用品等会逐渐用完的物品，可记录数量、补货和到期提醒。</p> : null}
@@ -280,6 +278,11 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
           ) : (
             <section className="form-section new-item-stage new-item-stage--location">
               <div className="form-section__title"><div><small>第二步</small><h2>放在哪里？</h2><span>选择常用位置，也可以暂时加入待归位。</span></div></div>
+              <div className="new-item-location-summary">
+                <span className="new-item-location-summary__icon" aria-hidden="true">{selectedLocation ? getLocationSymbol(selectedLocation.id, selectedLocation.name) : "📍"}</span>
+                <div className="new-item-location-summary__copy"><small>正在添加</small><strong>{form.name}</strong></div>
+                <button type="button" onClick={() => { setStep(1); resetFlowViewport(); }}>修改</button>
+              </div>
               <div className="new-item-location-options" aria-label="常用存放位置">
                 <button className={!form.locationId ? "is-active" : ""} type="button" onClick={() => selectLocation("")}><span aria-hidden="true">📍</span><strong>待归位</strong></button>
                 {locationOptions.map((location) => (
@@ -289,8 +292,6 @@ export function QuickItemForm({ onSubmit, initialData }: QuickItemFormProps) {
                   </button>
                 ))}
               </div>
-              <label className="new-item-more-location"><span>更多位置</span><select value={form.locationId ?? ""} onChange={(event) => selectLocation(event.target.value)} aria-label="全部存放位置"><option value="">暂不设置，加入待归位</option>{locationGroups.map(({ area, containers }) => <optgroup key={area.id} label={area.name}><option value={area.id}>{area.name}</option>{containers.map((location) => <option key={location.id} value={location.id}>{getLocationPath(locations, location.id)}</option>)}</optgroup>)}</select></label>
-              <button className="text-button" type="button" onClick={() => setStep(1)}>← 修改物品名称</button>
             </section>
           )}
 
@@ -308,7 +309,7 @@ function Suggestion({ label, value }: { label: string; value: string }) {
 }
 
 function AiSparkIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3.5c.6 4.1 2.4 5.9 6.5 6.5-4.1.6-5.9 2.4-6.5 6.5-.6-4.1-2.4-5.9-6.5-6.5 4.1-.6 5.9-2.4 6.5-6.5Z" /><path d="M18.5 15.5c.25 1.7 1.05 2.5 2.75 2.75-1.7.25-2.5 1.05-2.75 2.75-.25-1.7-1.05-2.5-2.75-2.75 1.7-.25 2.5-1.05 2.75-2.75Z" /></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 8.5h3l1.5-2h7l1.5 2h3v10H4Z" /><circle cx="12" cy="13.5" r="3.2" /><path d="m18.2 3 .5 1.6 1.6.5-1.6.5-.5 1.6-.5-1.6-1.6-.5 1.6-.5.5-1.6Z" /></svg>;
 }
 
 function CameraIcon() {

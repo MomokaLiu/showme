@@ -9,17 +9,15 @@ const CONVERSION_STORAGE_KEY = "buwangwu.shoppingConversion";
 export default function NewItemPage() {
   const { createItem, completeShoppingConversion } = useInventoryStore();
   const [createdItemId, setCreatedItemId] = useState<string>();
-  const [batchLocationId, setBatchLocationId] = useState<string>();
-  const [formVersion, setFormVersion] = useState(0);
-  const conversion = useMemo(loadShoppingConversion, [formVersion]);
+  const conversion = useMemo(loadShoppingConversion, []);
   const queryName = useMemo(() => {
     const [, query = ""] = window.location.hash.split("?", 2);
     return new URLSearchParams(query).get("name") ?? "";
-  }, [formVersion]);
+  }, []);
   const queryLocationId = useMemo(() => {
     const [, query = ""] = window.location.hash.split("?", 2);
     return new URLSearchParams(query).get("location") ?? undefined;
-  }, [formVersion]);
+  }, []);
 
   async function handleSubmit(data: QuickItemFormData) {
     const quantity = data.quantity ?? conversion?.quantity ?? 1;
@@ -38,7 +36,6 @@ export default function NewItemPage() {
       tags: data.tags,
       totalPrice: data.totalPrice ?? conversion?.estimatedPrice,
     });
-    setBatchLocationId(data.locationId);
     window.sessionStorage.setItem("buwangwu.quickCreatedItemId", id);
     if (conversion) {
       await completeShoppingConversion(conversion.id, id);
@@ -50,14 +47,12 @@ export default function NewItemPage() {
   if (createdItemId) {
     return (
       <div className="page-stack quick-create-success">
-        <div className="success-mark" aria-hidden="true">✓</div>
-        <h2>已经记下来了</h2>
-        <p>位置已经记住；价格、图片和其他资料随时再补充。</p>
-        <button className="primary-button" type="button" onClick={() => navigate("/")}>完成并去找东西</button>
-        <button className="secondary-button" type="button" onClick={() => navigate(`/items/edit/${createdItemId}`)}>继续完善资料</button>
-        <button type="button" className="text-button" onClick={() => { setCreatedItemId(undefined); setFormVersion((value) => value + 1); }}>
-          {batchLocationId ? "继续在这个位置添加" : "再记一件"}
-        </button>
+        <section className="quick-create-success__card">
+          <span className="success-mark" aria-hidden="true">✓</span>
+          <div><small>保存成功</small><h2>已经记下</h2></div>
+        </section>
+        <button className="primary-button" type="button" onClick={() => navigate(`/items/edit/${createdItemId}`)}>完善资料</button>
+        <button className="quick-create-success__search" type="button" onClick={() => navigate("/search")}>去找东西</button>
       </div>
     );
   }
@@ -65,10 +60,9 @@ export default function NewItemPage() {
   return (
     <div className="page-stack">
       <QuickItemForm
-        key={formVersion}
         initialData={{
           name: conversion?.name ?? queryName,
-          locationId: batchLocationId ?? queryLocationId,
+          locationId: queryLocationId,
           quantity: conversion?.quantity,
           unit: conversion?.unit,
           totalPrice: conversion?.estimatedPrice,

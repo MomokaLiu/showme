@@ -25,6 +25,7 @@ export default function FindPage({
     shoppingItems,
     getCategoryName,
     getLocationPath,
+    deleteItem,
   } = useInventoryStore();
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -32,6 +33,8 @@ export default function FindPage({
   const [locationId, setLocationId] = useState(initialLocationId === "" ? "missing" : initialLocationId || "all");
   const [sort, setSort] = useState<InventorySearchSort>(initialQuery ? "relevance" : "updated");
   const [sortOpen, setSortOpen] = useState(false);
+  const [actionItemId, setActionItemId] = useState<string>();
+  const [deleteConfirmItemId, setDeleteConfirmItemId] = useState<string>();
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -94,6 +97,18 @@ export default function FindPage({
 
   const hasFilters = Boolean(query) || status !== "all" || categoryId !== "all" || locationId !== "all";
   const foundVia = query ? "search" : locationId !== "all" ? "location" : undefined;
+  const actionItem = items.find((item) => item.id === actionItemId);
+
+  function closeItemActions() {
+    setActionItemId(undefined);
+    setDeleteConfirmItemId(undefined);
+  }
+
+  async function confirmDeleteItem() {
+    if (!deleteConfirmItemId) return;
+    await deleteItem(deleteConfirmItemId);
+    closeItemActions();
+  }
 
   return (
     <div className="page-stack find-page">
@@ -174,7 +189,17 @@ export default function FindPage({
           <div className="inventory-grid">
             {visibleItems.map((item) => (
               <div className="find-result-card" key={item.id}>
-                <ItemCard item={item} categoryName={getCategoryName(item.categoryId)} locationName={getLocationPath(item.locationId)} viewMode="grid" onClick={() => navigate(`/items/${item.id}${foundVia ? `?foundVia=${foundVia}` : ""}`)} />
+                <ItemCard
+                  item={item}
+                  categoryName={getCategoryName(item.categoryId)}
+                  locationName={getLocationPath(item.locationId)}
+                  viewMode="grid"
+                  onClick={() => navigate(`/items/${item.id}${foundVia ? `?foundVia=${foundVia}` : ""}`)}
+                  onLongPress={() => {
+                    setActionItemId(item.id);
+                    setDeleteConfirmItemId(undefined);
+                  }}
+                />
               </div>
             ))}
           </div>
@@ -186,6 +211,25 @@ export default function FindPage({
           />
         )}
       </section>
+
+      {actionItem ? (
+        <div className="item-hold-menu-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) closeItemActions(); }}>
+          <section className="item-hold-menu" role="dialog" aria-modal="true" aria-label={`${actionItem.name}快捷操作`}>
+            <div className="item-hold-menu__copy"><small>已选中物品</small><strong>{actionItem.name}</strong></div>
+            {deleteConfirmItemId ? (
+              <div className="item-hold-menu__choices item-hold-menu__choices--confirm">
+                <button className="is-danger" type="button" onClick={() => void confirmDeleteItem()}>确认删除</button>
+                <button type="button" onClick={() => setDeleteConfirmItemId(undefined)}>取消</button>
+              </div>
+            ) : (
+              <div className="item-hold-menu__choices">
+                <button type="button" onClick={() => navigate(`/items/edit/${actionItem.id}`)}>编辑</button>
+                <button className="is-danger" type="button" onClick={() => setDeleteConfirmItemId(actionItem.id)}>删除</button>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       {sortOpen ? (
         <div className="sort-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSortOpen(false); }}>
